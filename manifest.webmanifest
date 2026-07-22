@@ -1,0 +1,10 @@
+{
+  "name": "MB Finance",
+  "short_name": "MB Finance",
+  "lang": "id",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff8fb",
+  "theme_color": "#f35b9b",
+  "description": "Keuangan bersama Bryan dan Maddy."
+}

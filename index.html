@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f35b9b" />
+    <meta name="description" content="Catatan keuangan bersama Bryan dan Maddy." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>MB Finance</title>
+  </head>
+  <body>
+    <main id="app-shell">
+      <section id="setup-screen" class="welcome-screen" hidden>
+        <div class="brand-mark" aria-hidden="true"><span>M</span><span>B</span></div>
+        <p class="eyebrow">MB FINANCE</p>
+        <h1>Hubungkan dulu ke Supabase.</h1>
+        <p class="muted">Salin <code>config.example.js</code> menjadi <code>config.js</code>, lalu isi Project URL dan anon key Supabase kalian.</p>
+        <a class="primary-button" href="./config.example.js">Lihat contoh konfigurasi</a>
+      </section>
+
+      <section id="auth-screen" class="welcome-screen" hidden>
+        <div class="brand-mark" aria-hidden="true"><span>M</span><span>B</span></div>
+        <p class="eyebrow">MB FINANCE</p>
+        <h1>Masuk ke keuangan kalian.</h1>
+        <p class="muted">Gunakan akun Supabase Auth Bryan atau Maddy.</p>
+        <form id="login-form" class="stack-form">
+          <label>Email<input id="login-email" type="email" autocomplete="email" required placeholder="nama@email.com" /></label>
+          <label>Password<input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••" /></label>
+          <button class="primary-button" type="submit">Masuk</button>
+        </form>
+        <p id="auth-message" class="form-message" role="status"></p>
+      </section>
+
+      <section id="main-app" hidden>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="today-label">KEUANGAN KALIAN</p>
+            <h1 id="greeting">Hallo, Bryan &amp; Maddy!</h1>
+          </div>
+          <button class="profile-button" id="logout-button" type="button" aria-label="Keluar dari aplikasi" title="Keluar">
+            <span id="profile-initial">M</span>
+          </button>
+        </header>
+
+        <section class="view active" data-view="home">
+          <article class="balance-card">
+            <p>Total uang kalian</p>
+            <h2 id="total-combined">Rp0</h2>
+            <div class="balance-detail">
+              <span>Dipegang Maddy</span>
+              <strong id="total-held-maddy">Rp0</strong>
+            </div>
+          </article>
+
+          <div class="ownership-grid">
+            <article class="person-card maddy-card">
+              <div class="person-heading"><span class="avatar maddy-avatar">M</span><span>Maddy</span></div>
+              <strong id="maddy-held">Rp0</strong>
+              <small>Dana yang dipegang</small>
+            </article>
+            <article class="person-card bryan-card">
+              <div class="person-heading"><span class="avatar bryan-avatar">B</span><span>Bryan</span></div>
+              <strong id="bryan-held">Rp0</strong>
+              <small>Dana yang dipegang</small>
+            </article>
+          </div>
+
+          <article class="shared-row">
+            <span class="round-icon violet-icon" aria-hidden="true">♡</span>
+            <div><strong>Tabungan bersama</strong><small>Bagian dari total uang kalian</small></div>
+            <strong id="total-savings-row">Rp0</strong>
+          </article>
+
+          <section class="section-block">
+            <div class="section-heading"><div><p class="eyebrow">CATAT CEPAT</p><h2>Apa yang terjadi hari ini?</h2></div></div>
+            <div class="quick-grid">
+              <button class="quick-action income-action" data-action="new-income" type="button"><span>＋</span>Gaji masuk</button>
+              <button class="quick-action expense-action" data-action="new-expense" type="button"><span>−</span>Pengeluaran</button>
+              <button class="quick-action transfer-action" data-action="new-transfer" type="button"><span>⇄</span>Bagi gaji</button>
+              <button class="quick-action saving-action" data-action="new-saving" type="button"><span>⌁</span>Menabung</button>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading"><div><p class="eyebrow">HARI INI</p><h2>Ringkasan pemakaian</h2></div><span id="month-chip" class="month-chip"></span></div>
+            <div class="usage-card">
+              <div><span>Gaji masuk</span><strong id="monthly-salary">Rp0</strong></div>
+              <div class="usage-breakdown"><span>Dipakai <b id="monthly-usage">Rp0</b></span><span>Tabungan <b id="monthly-saving-added">Rp0</b></span></div>
+              <div class="usage-breakdown secondary-breakdown"><span>Harian <b id="monthly-daily">Rp0</b></span><span>Tagihan <b id="monthly-bills-paid">Rp0</b></span></div>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading"><div><p class="eyebrow">REKENING</p><h2>Uang tersimpan di mana?</h2></div></div>
+            <div id="account-list" class="account-list"></div>
+          </section>
+        </section>
+
+        <section class="view" data-view="activity">
+          <div class="page-heading"><p class="eyebrow">RIWAYAT</p><h2>Semua catatan</h2><p id="activity-description" class="muted">50 transaksi terbaru.</p></div>
+          <form id="activity-filter" class="activity-filter">
+            <label>Filter tanggal
+              <select id="history-mode" name="mode">
+                <option value="all">Semua tanggal</option>
+                <option value="single">Satu tanggal</option>
+                <option value="range">Rentang tanggal</option>
+              </select>
+            </label>
+            <div id="history-single-field" class="history-date-field" hidden><label>Tanggal<input id="history-single-date" name="single_date" type="date" /></label></div>
+            <div id="history-range-fields" class="form-row history-date-field" hidden><label>Dari<input id="history-from-date" name="from_date" type="date" /></label><label>Sampai<input id="history-to-date" name="to_date" type="date" /></label></div>
+            <div class="filter-actions"><button class="small-button" type="submit">Terapkan</button><button id="history-reset" class="outline-button" type="button">Reset</button></div>
+            <p id="history-filter-message" class="form-message" role="status"></p>
+          </form>
+          <div id="activity-list" class="timeline-list"></div>
+        </section>
+
+        <section class="view" data-view="bills">
+          <div class="page-heading page-heading-actions"><div><p class="eyebrow">TAGIHAN</p><h2>Bulan ini</h2><p id="bill-overview" class="muted">Memuat tagihan...</p></div><button class="small-button" type="button" data-action="new-bill">＋ Baru</button></div>
+          <div class="button-row"><button id="generate-bills" class="secondary-button" type="button">Buat daftar tagihan bulan ini</button></div>
+          <div id="bill-list" class="bill-list"></div>
+        </section>
+
+        <section class="view" data-view="savings">
+          <div class="page-heading page-heading-actions"><div><p class="eyebrow">TABUNGAN</p><h2>Target bersama</h2><p class="muted">Terkumpul <strong id="total-savings">Rp0</strong> di rekening tabungan.</p></div><button class="small-button" type="button" data-action="new-goal">＋ Target</button></div>
+          <div id="goal-list" class="goal-list"></div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Navigasi utama">
+          <button class="nav-item active" type="button" data-view-target="home"><span>⌂</span><small>Beranda</small></button>
+          <button class="nav-item" type="button" data-view-target="activity"><span>◷</span><small>Riwayat</small></button>
+          <button class="nav-item" type="button" data-view-target="bills"><span>▣</span><small>Tagihan</small></button>
+          <button class="nav-item" type="button" data-view-target="savings"><span>⌁</span><small>Tabungan</small></button>
+        </nav>
+      </section>
+    </main>
+
+    <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+    <section id="bottom-sheet" class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><div><p id="sheet-kicker" class="eyebrow">CATATAN</p><h2 id="sheet-title">Tambah catatan</h2></div><button id="sheet-close" class="icon-button" type="button" aria-label="Tutup">×</button></div>
+      <div id="sheet-content"></div>
+    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="./config.js" defer></script>
+    <script src="./client.js" defer></script>
+  </body>
+</html>
