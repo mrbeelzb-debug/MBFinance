@@ -31,6 +31,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 const formatMoney = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 const formatMonth = (value) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
+const formatCalendarMonth = (date) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
+const calendarWeekdays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 
 document.addEventListener('DOMContentLoaded', init);
@@ -161,9 +163,6 @@ async function loadData() {
 function renderAll() {
   const overview = state.overview;
   $('#greeting').textContent = 'Hallo, Bryan & Maddy!';
-  $('#profile-initial').textContent = state.me.name.charAt(0).toUpperCase();
-  $('#profile-initial').parentElement.style.background = state.me.name === 'Bryan' ? 'var(--bryan-soft)' : 'var(--maddy-soft)';
-  $('#profile-initial').parentElement.style.color = state.me.name === 'Bryan' ? 'var(--bryan-dark)' : 'var(--maddy-dark)';
   $('#total-combined').textContent = formatMoney(overview.total_combined_money);
   $('#total-held-maddy').textContent = formatMoney(overview.total_held_by_maddy);
   $('#maddy-held').textContent = formatMoney(overview.total_held_by_maddy);
@@ -356,7 +355,8 @@ async function saveEntry(event) {
 }
 
 function openNewBillSheet() {
-  openSheet('Tambah tagihan berulang', 'TAGIHAN', `<form class="stack-form" id="new-bill-form"><label>Nama tagihan<input name="name" required maxlength="80" placeholder="Contoh: Shopee PayLater" /></label><div class="form-row"><label>Kategori<select name="bill_category"><option value="personal">Pribadi</option><option value="shopee">Shopee</option><option value="application">Aplikasi</option><option value="other">Lainnya</option></select></label><label>Jatuh tempo<input name="due_day" type="number" min="1" max="31" placeholder="Tanggal" /></label></div><label>Nominal tagihan (Rp)<input name="default_amount" type="number" inputmode="numeric" min="1" required placeholder="Contoh: 150000" /></label><label>Penanggung<select name="responsible_person_id"><option value="">Bersama</option>${personOptions()}</select></label><label>Bayar dari<select name="default_source_account_id"><option value="">Pilih nanti</option>${accountOptions(defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Simpan tagihan</button><p class="form-message" role="status"></p></form>`);
+  openSheet('Tambah tagihan berulang', 'TAGIHAN', `<form class="stack-form" id="new-bill-form"><label>Nama tagihan<input name="name" required maxlength="80" placeholder="Contoh: Shopee PayLater" /></label><label>Kategori<select name="bill_category"><option value="personal">Pribadi</option><option value="shopee">Shopee</option><option value="application">Aplikasi</option><option value="other">Lainnya</option></select></label>${calendarField('due_date', 'Jatuh tempo', today())}<div class="form-row"><label>Nominal (Rp)<input name="default_amount" type="number" inputmode="numeric" min="1" required placeholder="Contoh: 100000" /></label><label>Jumlah bulan<input name="repeat_months" type="number" inputmode="numeric" min="1" max="36" value="1" required /></label></div><label>Penanggung<select name="responsible_person_id"><option value="">Bersama</option>${personOptions()}</select></label><label>Bayar dari<select name="default_source_account_id"><option value="">Pilih nanti</option>${accountOptions(defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Simpan tagihan</button><p class="form-message" role="status"></p></form>`);
+  initCalendarFields($('#new-bill-form'));
   $('#new-bill-form').addEventListener('submit', saveBill);
 }
 
@@ -364,16 +364,105 @@ async function saveBill(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
+  if (!values.due_date) return formError(form, 'Pilih tanggal jatuh tempo.');
+  const repeatMonths = Math.max(1, Math.min(Number(values.repeat_months || 1), 36));
   await saveWithButton(form, async () => {
-    const { error } = await state.client.from('recurring_bills').insert({
+    const { data: recurringBill, error } = await state.client.from('recurring_bills').insert({
       name: values.name.trim(), bill_category: values.bill_category, default_amount: Number(values.default_amount),
-      due_day: values.due_day ? Number(values.due_day) : null,
+      due_day: values.due_date ? Number(values.due_date.slice(-2)) : null,
+      is_active: repeatMonths === 1,
       responsible_person_id: values.responsible_person_id ? Number(values.responsible_person_id) : null,
       default_source_account_id: values.default_source_account_id ? Number(values.default_source_account_id) : null,
       note: values.note.trim() || null
-    });
+    }).select('id').single();
     if (error) throw error;
-  }, 'Tagihan berulang disimpan.');
+
+    const instances = Array.from({ length: repeatMonths }, (_item, index) => ({
+      recurring_bill_id: recurringBill.id,
+      bill_month: billMonthValue(values.due_date, index),
+      amount_due: Number(values.default_amount)
+    }));
+    const { error: instanceError } = await state.client.from('bill_instances').insert(instances);
+    if (instanceError) {
+      await state.client.from('recurring_bills').delete().eq('id', recurringBill.id);
+      throw instanceError;
+    }
+  }, repeatMonths > 1 ? `Tagihan dibuat untuk ${repeatMonths} bulan.` : 'Tagihan berulang disimpan.');
+}
+
+function calendarField(name, label, value = today()) {
+  return `<div class="calendar-field" data-calendar-field><span class="calendar-label">${escapeHtml(label)}</span><input name="${escapeHtml(name)}" type="hidden" value="${escapeHtml(value)}" data-calendar-input /><div class="calendar-picker" data-calendar><div class="calendar-top"><button class="calendar-nav" type="button" data-calendar-prev aria-label="Bulan sebelumnya">‹</button><strong data-calendar-title></strong><button class="calendar-nav" type="button" data-calendar-next aria-label="Bulan berikutnya">›</button></div><p class="calendar-selected" data-calendar-selected-text aria-live="polite"></p><div class="calendar-weekdays">${calendarWeekdays.map((day) => `<span>${day}</span>`).join('')}</div><div class="calendar-grid" data-calendar-grid></div></div></div>`;
+}
+
+function initCalendarFields(root = document) {
+  root.querySelectorAll('[data-calendar]').forEach((calendar) => {
+    if (calendar.dataset.ready) return;
+    const input = calendar.closest('[data-calendar-field]').querySelector('[data-calendar-input]');
+    calendar.dataset.ready = '1';
+    calendar.dataset.viewMonth = (input.value || today()).slice(0, 7);
+    calendar.addEventListener('click', handleCalendarClick);
+    renderCalendar(calendar);
+  });
+}
+
+function handleCalendarClick(event) {
+  const calendar = event.currentTarget;
+  if (event.target.closest('[data-calendar-prev]')) return shiftCalendarMonth(calendar, -1);
+  if (event.target.closest('[data-calendar-next]')) return shiftCalendarMonth(calendar, 1);
+  const dayButton = event.target.closest('[data-calendar-date]');
+  if (!dayButton) return;
+
+  const input = calendar.closest('[data-calendar-field]').querySelector('[data-calendar-input]');
+  input.value = dayButton.dataset.calendarDate;
+  calendar.dataset.viewMonth = input.value.slice(0, 7);
+  renderCalendar(calendar);
+}
+
+function shiftCalendarMonth(calendar, offset) {
+  const [year, month] = calendar.dataset.viewMonth.split('-').map(Number);
+  const nextMonth = new Date(year, month - 1 + offset, 1);
+  calendar.dataset.viewMonth = toMonthValue(nextMonth);
+  renderCalendar(calendar);
+}
+
+function renderCalendar(calendar) {
+  const input = calendar.closest('[data-calendar-field]').querySelector('[data-calendar-input]');
+  const selectedValue = input.value || today();
+  const [year, month] = calendar.dataset.viewMonth.split('-').map(Number);
+  const monthDate = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstWeekday = monthDate.getDay();
+  const todayValue = today();
+  let cells = '';
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    cells += '<span class="calendar-empty" aria-hidden="true"></span>';
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const value = toDateValue(new Date(year, month - 1, day));
+    const classes = ['calendar-day'];
+    if (value === selectedValue) classes.push('selected');
+    if (value === todayValue) classes.push('today');
+    cells += `<button class="${classes.join(' ')}" type="button" data-calendar-date="${value}" aria-pressed="${value === selectedValue}">${day}</button>`;
+  }
+
+  calendar.querySelector('[data-calendar-title]').textContent = formatCalendarMonth(monthDate);
+  calendar.querySelector('[data-calendar-selected-text]').textContent = formatDate(selectedValue);
+  calendar.querySelector('[data-calendar-grid]').innerHTML = cells;
+}
+
+function toDateValue(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function toMonthValue(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function billMonthValue(dateValue, offset = 0) {
+  const [year, month] = dateValue.split('-').map(Number);
+  return toDateValue(new Date(year, month - 1 + offset, 1));
 }
 
 async function generateBills() {
