@@ -1,18 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
-  "functions": {
-    "app.js": {
-      "includeFiles": [
-        "index.html",
-        "styles.css",
-        "client.js",
-        "config.js",
-        "manifest.webmanifest",
-        "sw.js"
-      ]
-    }
-  },
   "headers": [
     {
       "source": "/sw.js",
