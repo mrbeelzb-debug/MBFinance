@@ -41,7 +41,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .topbar h1 { margin-bottom: 0; font-size: 25px; letter-spacing: -.7px; }
 .eyebrow { margin-bottom: 5px; color: var(--muted); font-weight: 800; font-size: 10px; letter-spacing: 1.2px; }
 .muted { color: var(--muted); font-size: 14px; }
-.profile-button { width: 42px; height: 42px; border: 0; border-radius: 50%; background: var(--maddy-soft); color: var(--maddy-dark); font-weight: 900; font-size: 17px; }
+.profile-button { width: 42px; height: 42px; display: grid; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: var(--maddy-soft); color: var(--maddy-dark); font-weight: 900; font-size: 17px; }
 
 .view { display: none; padding: 0 16px calc(105px + env(safe-area-inset-bottom)); }
 .view.active { display: block; }

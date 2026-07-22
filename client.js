@@ -5,7 +5,6 @@ const isConfigured = config.supabaseUrl && !config.supabaseUrl.includes('YOUR_')
 const demoMode = new URLSearchParams(window.location.search).get('demo') === '1';
 const state = {
   client: null,
-  session: null,
   people: [],
   accounts: [],
   balances: [],
@@ -48,28 +47,14 @@ async function init() {
     return;
   }
 
-  state.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-  bindStaticEvents();
-  const { data } = await state.client.auth.getSession();
-  state.session = data.session;
-  if (state.session) await openApp();
-  else $('#auth-screen').hidden = false;
-
-  state.client.auth.onAuthStateChange(async (_event, session) => {
-    state.session = session;
-    if (!session) {
-      $('#main-app').hidden = true;
-      $('#auth-screen').hidden = false;
-    }
+  state.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
+  bindStaticEvents();
+  await openApp();
 }
 
 function bindStaticEvents() {
-  $('#login-form').addEventListener('submit', login);
-  $('#logout-button').addEventListener('click', async () => {
-    if (demoMode) return toast('Ini mode demo. Data tidak akan tersimpan.');
-    await state.client.auth.signOut();
-  });
   $('#sheet-close').addEventListener('click', closeSheet);
   $('#sheet-backdrop').addEventListener('click', closeSheet);
   $('#generate-bills').addEventListener('click', generateBills);
@@ -120,26 +105,9 @@ function openDemo() {
   renderAll();
 }
 
-async function login(event) {
-  event.preventDefault();
-  const button = event.submitter;
-  button.disabled = true;
-  $('#auth-message').textContent = '';
-  const { data, error } = await state.client.auth.signInWithPassword({
-    email: $('#login-email').value.trim(), password: $('#login-password').value
-  });
-  button.disabled = false;
-  if (error) {
-    $('#auth-message').textContent = error.message;
-    $('#auth-message').classList.add('error');
-    return;
-  }
-  state.session = data.session;
-  await openApp();
-}
-
 async function openApp() {
-  $('#auth-screen').hidden = true;
+  const authScreen = $('#auth-screen');
+  if (authScreen) authScreen.hidden = true;
   $('#setup-screen').hidden = true;
   $('#main-app').hidden = false;
   $('#today-label').textContent = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toUpperCase();
@@ -150,7 +118,7 @@ async function openApp() {
   } catch (error) {
     console.error(error);
     const reason = error.message || 'Tidak dapat memuat data.';
-    toast(`${reason} Pastikan akun Auth sudah dipetakan ke Bryan atau Maddy.`);
+    toast(`${reason} Pastikan migration akses tanpa login sudah dijalankan di Supabase.`);
   }
 }
 
@@ -174,17 +142,20 @@ async function loadData() {
   const failed = all.find((result) => result.error);
   if (failed) throw failed.error;
 
-  state.people = people.data;
-  state.accounts = accounts.data;
-  state.balances = balances.data;
+  state.people = people.data || [];
+  state.accounts = accounts.data || [];
+  state.balances = balances.data || [];
   state.overview = overview.data || {};
   state.cashflow = cashflow.data || {};
   state.usages = usages.data || [];
   state.bills = bills.data || [];
   state.goals = goals.data || [];
   state.entries = entries.data || [];
-  state.me = state.people.find((person) => person.auth_user_id === state.session.user.id);
-  if (!state.me) throw new Error('Akun ini belum dipetakan sebagai Bryan atau Maddy');
+  if (!state.people.length) throw new Error('Data Bryan & Maddy belum bisa diakses.');
+  state.me = state.people.find((person) => person.name === 'Maddy')
+    || state.people.find((person) => person.is_custodian)
+    || state.people.find((person) => person.name === 'Bryan')
+    || state.people[0];
 }
 
 function renderAll() {

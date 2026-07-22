@@ -19,28 +19,15 @@
         <a class="primary-button" href="./config.example.js">Lihat contoh konfigurasi</a>
       </section>
 
-      <section id="auth-screen" class="welcome-screen" hidden>
-        <div class="brand-mark" aria-hidden="true"><span>M</span><span>B</span></div>
-        <p class="eyebrow">MB FINANCE</p>
-        <h1>Masuk ke keuangan kalian.</h1>
-        <p class="muted">Gunakan akun Supabase Auth Bryan atau Maddy.</p>
-        <form id="login-form" class="stack-form">
-          <label>Email<input id="login-email" type="email" autocomplete="email" required placeholder="nama@email.com" /></label>
-          <label>Password<input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••" /></label>
-          <button class="primary-button" type="submit">Masuk</button>
-        </form>
-        <p id="auth-message" class="form-message" role="status"></p>
-      </section>
-
       <section id="main-app" hidden>
         <header class="topbar">
           <div>
             <p class="eyebrow" id="today-label">KEUANGAN KALIAN</p>
             <h1 id="greeting">Hallo, Bryan &amp; Maddy!</h1>
           </div>
-          <button class="profile-button" id="logout-button" type="button" aria-label="Keluar dari aplikasi" title="Keluar">
+          <div class="profile-button" aria-hidden="true">
             <span id="profile-initial">M</span>
-          </button>
+          </div>
         </header>
 
         <section class="view active" data-view="home">
