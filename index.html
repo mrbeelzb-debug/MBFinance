@@ -56,6 +56,23 @@
             <strong id="total-savings-row">Rp0</strong>
           </article>
 
+          <section class="section-block compact-section">
+            <div class="section-heading"><div><p class="eyebrow">TAGIHAN</p><h2>Tagihan Bryan &amp; Maddy</h2><p id="home-bill-period" class="muted">Memuat...</p></div></div>
+            <div class="bill-summary-grid">
+              <article class="bill-summary-card maddy-bill-card">
+                <div class="person-heading"><span class="avatar maddy-avatar">M</span><span>Maddy</span></div>
+                <strong id="home-maddy-bill-total">Rp0</strong>
+                <small id="home-maddy-bill-count">0 tagihan</small>
+              </article>
+              <article class="bill-summary-card bryan-bill-card">
+                <div class="person-heading"><span class="avatar bryan-avatar">B</span><span>Bryan</span></div>
+                <strong id="home-bryan-bill-total">Rp0</strong>
+                <small id="home-bryan-bill-count">0 tagihan</small>
+              </article>
+            </div>
+            <div id="home-monthly-bill-list" class="monthly-bill-list"></div>
+          </section>
+
           <section class="section-block">
             <div class="section-heading"><div><p class="eyebrow">CATAT CEPAT</p><h2>Apa yang terjadi hari ini?</h2></div></div>
             <div class="quick-grid">
@@ -100,8 +117,20 @@
         </section>
 
         <section class="view" data-view="bills">
-          <div class="page-heading page-heading-actions"><div><p class="eyebrow">TAGIHAN</p><h2>Bulan ini</h2><p id="bill-overview" class="muted">Memuat tagihan...</p></div><button class="small-button" type="button" data-action="new-bill">＋ Baru</button></div>
-          <div class="button-row"><button id="generate-bills" class="secondary-button" type="button">Buat daftar tagihan bulan ini</button></div>
+          <div class="page-heading page-heading-actions"><div><p class="eyebrow">TAGIHAN</p><h2 id="bill-title">Tagihan terdekat</h2><p id="bill-overview" class="muted">Memuat tagihan...</p></div><button class="small-button" type="button" data-action="new-bill">＋ Baru</button></div>
+          <div class="bill-summary-grid bill-page-summary">
+            <article class="bill-summary-card maddy-bill-card">
+              <div class="person-heading"><span class="avatar maddy-avatar">M</span><span>Maddy</span></div>
+              <strong id="page-maddy-bill-total">Rp0</strong>
+              <small id="page-maddy-bill-count">0 tagihan</small>
+            </article>
+            <article class="bill-summary-card bryan-bill-card">
+              <div class="person-heading"><span class="avatar bryan-avatar">B</span><span>Bryan</span></div>
+              <strong id="page-bryan-bill-total">Rp0</strong>
+              <small id="page-bryan-bill-count">0 tagihan</small>
+            </article>
+          </div>
+          <div class="button-row"><button id="generate-bills" class="secondary-button" type="button">Sinkronkan tagihan</button></div>
           <div id="bill-list" class="bill-list"></div>
         </section>
 

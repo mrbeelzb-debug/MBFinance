@@ -66,8 +66,21 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .shared-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .round-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; font-weight: 900; }
 .violet-icon { background: var(--violet-soft); color: var(--violet); }
+.bill-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 13px; }
+.bill-summary-card { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.bill-summary-card strong { display: block; margin: 14px 0 3px; overflow: hidden; font-size: 17px; letter-spacing: -.5px; text-overflow: ellipsis; white-space: nowrap; }
+.bill-summary-card small { color: var(--muted); font-size: 11px; }
+.maddy-bill-card { border-color: #663651; background: var(--maddy-soft); color: var(--maddy-dark); }
+.bryan-bill-card { border-color: #30456f; background: var(--bryan-soft); color: var(--bryan-dark); }
+.bill-page-summary { margin: 0 0 12px; }
+.monthly-bill-list { display: grid; gap: 8px; margin-top: 10px; }
+.monthly-bill-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.monthly-bill-row strong { display: block; font-size: 13px; }
+.monthly-bill-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.monthly-bill-row b { font-size: 14px; white-space: nowrap; }
 
 .section-block { margin-top: 28px; }
+.compact-section { margin-top: 18px; }
 .section-heading, .page-heading-actions { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .section-heading h2, .page-heading h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.5px; }
 .section-heading .eyebrow, .page-heading .eyebrow { margin-bottom: 4px; }
@@ -126,6 +139,8 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .bill-row > div { flex: 1; min-width: 0; }
 .bill-row > b { font-size: 14px; white-space: nowrap; }
 .bill-row .small-button { min-height: 35px; padding: 0 10px; font-size: 11px; }
+.bill-month-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 3px 2px; color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .7px; text-transform: uppercase; }
+.bill-month-heading b { color: var(--ink); font-size: 12px; letter-spacing: 0; text-transform: none; }
 .status { display: inline-block; margin-top: 5px; padding: 3px 7px; border-radius: 9px; font-size: 9px; font-weight: 900; letter-spacing: .3px; text-transform: uppercase; }
 .status.pending { background: #fff1d8; color: #a65b00; }
 .status.paid { background: var(--green-soft); color: var(--green); }

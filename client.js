@@ -12,6 +12,8 @@ const state = {
   cashflow: {},
   usages: [],
   bills: [],
+  billMonth: '',
+  recurringBills: [],
   goals: [],
   entries: [],
   demoEntries: [],
@@ -129,18 +131,18 @@ async function loadData() {
   const month = currentMonth();
   const day = today();
   const entriesQuery = buildActivityQuery();
-  const [people, accounts, balances, overview, cashflow, usages, bills, goals, entries] = await Promise.all([
+  const [people, accounts, balances, overview, cashflow, usages, recurringBills, goals, entries] = await Promise.all([
     sb.from('people').select('*').order('name'),
     sb.from('accounts').select('*').eq('is_active', true).order('name'),
     sb.from('v_account_balances').select('*').order('name'),
     sb.from('v_shared_overview').select('*').single(),
     sb.from('v_daily_cashflow').select('*').eq('day', day).maybeSingle(),
     sb.from('v_person_monthly_usage').select('*').eq('month', month),
-    sb.from('bill_instances').select('*, recurring_bills(*)').eq('bill_month', month).order('status').order('id'),
+    sb.from('recurring_bills').select('*').eq('is_active', true).order('id'),
     sb.from('v_savings_goal_progress').select('*').eq('is_active', true).order('target_date', { nullsFirst: false }),
     entriesQuery
   ]);
-  const all = [people, accounts, balances, overview, cashflow, usages, bills, goals, entries];
+  const all = [people, accounts, balances, overview, cashflow, usages, recurringBills, goals, entries];
   const failed = all.find((result) => result.error);
   if (failed) throw failed.error;
 
@@ -150,7 +152,7 @@ async function loadData() {
   state.overview = overview.data || {};
   state.cashflow = cashflow.data || {};
   state.usages = usages.data || [];
-  state.bills = bills.data || [];
+  state.recurringBills = recurringBills.data || [];
   state.goals = goals.data || [];
   state.entries = entries.data || [];
   if (!state.people.length) throw new Error('Data Bryan & Maddy belum bisa diakses.');
@@ -158,6 +160,11 @@ async function loadData() {
     || state.people.find((person) => person.is_custodian)
     || state.people.find((person) => person.name === 'Bryan')
     || state.people[0];
+
+  const { data: bills, error: billsError } = await buildBillsQuery();
+  if (billsError) throw billsError;
+  state.billMonth = currentMonth();
+  state.bills = bills || [];
 }
 
 function renderAll() {
@@ -174,7 +181,7 @@ function renderAll() {
   $('#monthly-daily').textContent = formatMoney(state.cashflow.daily_usage);
   $('#monthly-bills-paid').textContent = formatMoney(state.cashflow.bills_paid);
   $('#monthly-saving-added').textContent = formatMoney(state.cashflow.saving_added);
-  renderAccounts(); renderEntries(); renderBills(); renderGoals();
+  renderAccounts(); renderEntries(); renderBillSummaries(); renderBillsView(); renderGoals();
 }
 
 function renderAccounts() {
@@ -206,6 +213,49 @@ function buildActivityQuery() {
     if (filter.toDate) query = query.lte('entry_date', filter.toDate);
   }
   return query.order('entry_date', { ascending: false }).order('id', { ascending: false }).limit(50);
+}
+
+function buildBillsQuery() {
+  return state.client
+    .from('bill_instances')
+    .select('*, recurring_bills(*)')
+    .order('bill_month', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(240);
+}
+
+async function ensureUpcomingBillInstances(recurringBills = []) {
+  const activeBills = recurringBills.filter((bill) => bill.is_active);
+  if (!activeBills.length) return;
+
+  const rows = activeBills.flatMap((bill) => {
+    const startMonth = nextBillMonthFor(bill);
+    return Array.from({ length: 12 }, (_item, index) => ({
+      recurring_bill_id: bill.id,
+      bill_month: addMonths(startMonth, index),
+      amount_due: Number(bill.default_amount)
+    }));
+  });
+
+  const { error } = await state.client
+    .from('bill_instances')
+    .upsert(rows, { onConflict: 'recurring_bill_id,bill_month', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+function selectDisplayBills(bills = []) {
+  const month = currentMonth();
+  const sortedBills = [...bills].sort((a, b) => String(a.bill_month).localeCompare(String(b.bill_month)) || Number(a.id) - Number(b.id));
+  const currentBills = sortedBills.filter((bill) => sameMonth(bill.bill_month, month));
+  if (currentBills.length) return { billMonth: month, bills: currentBills };
+
+  const firstBill = sortedBills.find((bill) => bill.bill_month >= month);
+  const billMonth = firstBill?.bill_month || month;
+  return { billMonth, bills: sortedBills.filter((bill) => sameMonth(bill.bill_month, billMonth)) };
+}
+
+function sameMonth(value, monthValue) {
+  return String(value || '').slice(0, 7) === String(monthValue || '').slice(0, 7);
 }
 
 function syncHistoryDateFields() {
@@ -273,14 +323,116 @@ function historyFilterError(message) {
 
 function renderBills() {
   const pending = state.bills.filter((bill) => bill.status === 'pending');
-  const total = state.bills.reduce((sum, bill) => sum + Number(bill.amount_due), 0);
-  $('#bill-overview').textContent = state.bills.length ? `${pending.length} belum dibayar · Total ${formatMoney(total)}` : 'Belum ada tagihan bulan ini.';
+  const total = pending.reduce((sum, bill) => sum + Number(bill.amount_due), 0);
+  $('#bill-title').textContent = formatMonth(state.billMonth || currentMonth());
+  $('#bill-overview').textContent = state.bills.length ? `${pending.length} belum dibayar · Total ${formatMoney(total)}` : 'Belum ada tagihan terdekat.';
   $('#bill-list').innerHTML = state.bills.length ? state.bills.map((bill) => {
     const recurring = bill.recurring_bills || {};
     const tag = recurring.bill_category ? categoryLabels[recurring.bill_category] : 'Tagihan';
+    const responsible = personNameById(recurring.responsible_person_id) || 'Bersama';
+    const dueDate = billDueDate(bill);
     const action = bill.status === 'pending' ? `<button class="small-button" type="button" data-action="pay-bill" data-id="${bill.id}">Bayar</button>` : '';
-    return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)}${recurring.due_day ? ` · tgl ${recurring.due_day}` : ''}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><b>${formatMoney(bill.amount_due)}</b>${action}</article>`;
-  }).join('') : emptyState('Tekan “Buat daftar tagihan bulan ini” setelah menambahkan tagihan berulang.');
+    return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><b>${formatMoney(bill.amount_due)}</b>${action}</article>`;
+  }).join('') : emptyState('Belum ada tagihan terdekat. Tambahkan tagihan baru terlebih dahulu.');
+}
+
+function renderBillsView() {
+  const pending = state.bills.filter((bill) => bill.status === 'pending');
+  const pendingTotal = pending.reduce((sum, bill) => sum + Number(bill.amount_due || 0), 0);
+  $('#bill-title').textContent = 'Semua tagihan';
+  $('#bill-overview').textContent = state.bills.length
+    ? `${state.bills.length} tagihan · ${pending.length} belum dibayar · Total ${formatMoney(pendingTotal)}`
+    : 'Belum ada tagihan.';
+  $('#bill-list').innerHTML = state.bills.length
+    ? billMonthlySummary(state.bills).map((month) => `<div class="bill-month-heading"><span>${formatMonth(month.month)}</span><b>${formatMoney(month.pendingTotal)}</b></div>${month.bills.map(renderBillRow).join('')}`).join('')
+    : emptyState('Belum ada tagihan. Tambahkan tagihan baru terlebih dahulu.');
+}
+
+function renderBillRow(bill) {
+  const recurring = bill.recurring_bills || {};
+  const tag = recurring.bill_category ? categoryLabels[recurring.bill_category] : 'Tagihan';
+  const responsible = personNameById(recurring.responsible_person_id) || 'Bersama';
+  const dueDate = billDueDate(bill);
+  const action = bill.status === 'pending' ? `<button class="small-button" type="button" data-action="pay-bill" data-id="${bill.id}">Bayar</button>` : '';
+  return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><b>${formatMoney(bill.amount_due)}</b>${action}</article>`;
+}
+
+function renderBillSummaries() {
+  const summary = billSummaryByPerson();
+  const pendingCount = state.bills.filter((bill) => bill.status === 'pending').length;
+  $('#home-bill-period').textContent = `${pendingCount} tagihan belum dibayar`;
+  setBillSummary('home-maddy', summary.Maddy);
+  setBillSummary('home-bryan', summary.Bryan);
+  setBillSummary('page-maddy', summary.Maddy);
+  setBillSummary('page-bryan', summary.Bryan);
+  renderMonthlyBillSummary();
+}
+
+function renderMonthlyBillSummary() {
+  const rows = billMonthlySummary(state.bills).filter((month) => month.pendingCount > 0);
+  $('#home-monthly-bill-list').innerHTML = rows.length ? rows.map((month) => (
+    `<article class="monthly-bill-row"><div><strong>${formatMonth(month.month)}</strong><small>${month.pendingCount} tagihan belum dibayar</small></div><b>${formatMoney(month.pendingTotal)}</b></article>`
+  )).join('') : emptyState('Belum ada tagihan bulanan.');
+}
+
+function billMonthlySummary(bills = []) {
+  const groups = new Map();
+  sortBillsNewestFirst(bills).forEach((bill) => {
+    const month = String(bill.bill_month || currentMonth()).slice(0, 10);
+    if (!groups.has(month)) groups.set(month, { month, bills: [], count: 0, pendingCount: 0, total: 0, pendingTotal: 0 });
+    const group = groups.get(month);
+    group.bills.push(bill);
+    group.count += 1;
+    group.total += Number(bill.amount_due || 0);
+    if (bill.status === 'pending') {
+      group.pendingCount += 1;
+      group.pendingTotal += Number(bill.amount_due || 0);
+    }
+  });
+  return [...groups.values()].sort((a, b) => b.month.localeCompare(a.month));
+}
+
+function sortBillsNewestFirst(bills = []) {
+  return [...bills].sort((a, b) => {
+    const dateCompare = billDueDate(b).localeCompare(billDueDate(a));
+    if (dateCompare) return dateCompare;
+    return Number(b.id || 0) - Number(a.id || 0);
+  });
+}
+
+function setBillSummary(prefix, summary) {
+  $(`#${prefix}-bill-total`).textContent = formatMoney(summary.total);
+  $(`#${prefix}-bill-count`).textContent = `${summary.count} tagihan`;
+}
+
+function billSummaryByPerson() {
+  const summary = {
+    Bryan: { total: 0, count: 0 },
+    Maddy: { total: 0, count: 0 }
+  };
+
+  state.bills
+    .filter((bill) => bill.status === 'pending')
+    .forEach((bill) => {
+      const name = personNameById(bill.recurring_bills?.responsible_person_id);
+      if (!summary[name]) return;
+      summary[name].total += Number(bill.amount_due || 0);
+      summary[name].count += 1;
+    });
+
+  return summary;
+}
+
+function personNameById(id) {
+  return state.people.find((person) => String(person.id) === String(id))?.name || '';
+}
+
+function billDueDate(bill) {
+  const recurring = bill.recurring_bills || {};
+  const [year, month] = String(bill.bill_month || currentMonth()).split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const day = Math.min(Number(recurring.due_day || 1), daysInMonth);
+  return toDateValue(new Date(year, month - 1, day));
 }
 
 function renderGoals() {
@@ -403,7 +555,7 @@ async function saveBill(event) {
     const { data: recurringBill, error } = await state.client.from('recurring_bills').insert({
       name: values.name.trim(), bill_category: values.bill_category, default_amount: defaultAmount,
       due_day: values.due_date ? Number(values.due_date.slice(-2)) : null,
-      is_active: repeatMonths === 1,
+      is_active: false,
       responsible_person_id: values.responsible_person_id ? Number(values.responsible_person_id) : null,
       default_source_account_id: values.default_source_account_id ? Number(values.default_source_account_id) : null,
       note: values.note.trim() || null
@@ -498,15 +650,33 @@ function billMonthValue(dateValue, offset = 0) {
   return toDateValue(new Date(year, month - 1 + offset, 1));
 }
 
+function addMonths(dateValue, offset = 0) {
+  const [year, month] = dateValue.split('-').map(Number);
+  return toDateValue(new Date(year, month - 1 + offset, 1));
+}
+
+function nextBillMonthFor(bill) {
+  const now = new Date(`${today()}T00:00:00`);
+  const dueDay = Number(bill.due_day || 1);
+  const offset = dueDay < now.getDate() ? 1 : 0;
+  return toDateValue(new Date(now.getFullYear(), now.getMonth() + offset, 1));
+}
+
 async function generateBills() {
   if (demoMode) return toast('Mode demo: daftar tagihan tidak diubah.');
   const button = $('#generate-bills');
   button.disabled = true;
-  const { data, error } = await state.client.rpc('create_bill_instances', { p_month: currentMonth() });
-  button.disabled = false;
-  if (error) return toast(error.message);
-  toast(`${data || 0} tagihan bulan ini dibuat.`);
-  await refreshAndRender();
+  try {
+    const { data, error } = await state.client.from('recurring_bills').select('*').eq('is_active', true).order('id');
+    if (error) throw error;
+    await ensureUpcomingBillInstances(data || []);
+    toast('Tagihan disinkronkan.');
+    await refreshAndRender();
+  } catch (error) {
+    toast(error.message || 'Tagihan gagal disinkronkan.');
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openPayBillSheet(billId) {
