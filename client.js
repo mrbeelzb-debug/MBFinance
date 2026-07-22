@@ -316,6 +316,35 @@ document.addEventListener('click', (event) => {
   if (nav) setView(nav.dataset.viewTarget);
 });
 
+function moneyField(name, placeholder, value = '') {
+  const formattedValue = value === '' || value === null || value === undefined ? '' : formatMoneyInputValue(value);
+  return `<input name="${escapeHtml(name)}" type="text" inputmode="numeric" data-money-input required placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(formattedValue)}" />`;
+}
+
+function initMoneyInputs(root = document) {
+  root.querySelectorAll('[data-money-input]').forEach((input) => {
+    if (input.dataset.moneyReady) return;
+    input.dataset.moneyReady = '1';
+    input.value = formatMoneyInputValue(input.value);
+    input.addEventListener('input', handleMoneyInput);
+  });
+}
+
+function handleMoneyInput(event) {
+  const input = event.currentTarget;
+  input.value = formatMoneyInputValue(input.value);
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+function formatMoneyInputValue(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits ? new Intl.NumberFormat('en-US').format(Number(digits)) : '';
+}
+
+function parseMoney(value) {
+  return Number(String(value || '').replace(/\D/g, ''));
+}
+
 function openEntrySheet(type) {
   const labels = { income: 'Catat gaji masuk', expense: 'Catat pengeluaran', transfer: 'Bagi uang gaji', saving: 'Setor tabungan' };
   const sourceAccounts = accountOptions(type === 'income' ? null : defaultSource(type));
@@ -329,7 +358,7 @@ function openEntrySheet(type) {
       : `<label>Dari rekening<select name="from_account_id" required>${sourceAccounts}</select></label><label>Ke rekening<select name="to_account_id" required>${destinationAccounts}</select></label>`;
   const helper = type === 'income' ? 'Gaji masuk lebih dulu ke rekening utama. Setelah itu gunakan “Bagi gaji” untuk memindahkan bagian Bryan atau tabungan.' : type === 'transfer' ? 'Pilih tujuan: Uang Bryan, Saldo Utama Maddy, atau Tabungan Bersama. Ini tidak mengurangi total uang kalian.' : type === 'saving' ? 'Pilih rekening Tabungan Bersama sebagai tujuan.' : '';
   const categoryField = type === 'income' ? '<input name="category" type="hidden" value="salary" />' : `<label>Kategori<select name="category">${categories.map((category) => `<option value="${category}">${categoryLabels[category]}</option>`).join('')}</select></label>`;
-  openSheet(labels[type], 'CATATAN BARU', `<form class="stack-form" id="entry-form" data-entry-type="${type}"><label>Nominal (Rp)<input name="amount" inputmode="numeric" type="number" min="1" step="1" required placeholder="Contoh: 50000" /></label><div class="form-row"><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label>${categoryField}</div>${accountFields}<label>Catatan (opsional)<textarea name="note" placeholder="${type === 'income' ? 'Contoh: gaji bulan ini' : 'Contoh: makan siang'}"></textarea></label>${helper ? `<p class="helper-text">${helper}</p>` : ''}<button class="primary-button" type="submit">Simpan catatan</button><p class="form-message" role="status"></p></form>`);
+  openSheet(labels[type], 'CATATAN BARU', `<form class="stack-form" id="entry-form" data-entry-type="${type}"><label>Nominal (Rp)${moneyField('amount', 'Contoh: 50,000')}</label><div class="form-row"><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label>${categoryField}</div>${accountFields}<label>Catatan (opsional)<textarea name="note" placeholder="${type === 'income' ? 'Contoh: gaji bulan ini' : 'Contoh: makan siang'}"></textarea></label>${helper ? `<p class="helper-text">${helper}</p>` : ''}<button class="primary-button" type="submit">Simpan catatan</button><p class="form-message" role="status"></p></form>`);
   $('#entry-form').addEventListener('submit', saveEntry);
 }
 
@@ -337,10 +366,12 @@ async function saveEntry(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
+  const amount = parseMoney(values.amount);
+  if (!amount) return formError(form, 'Isi nominal terlebih dahulu.');
   const payload = {
     entry_type: form.dataset.entryType,
     category: values.category,
-    amount: Number(values.amount),
+    amount,
     entry_date: values.entry_date,
     from_account_id: values.from_account_id ? Number(values.from_account_id) : null,
     to_account_id: values.to_account_id ? Number(values.to_account_id) : null,
@@ -355,7 +386,7 @@ async function saveEntry(event) {
 }
 
 function openNewBillSheet() {
-  openSheet('Tambah tagihan berulang', 'TAGIHAN', `<form class="stack-form" id="new-bill-form"><label>Nama tagihan<input name="name" required maxlength="80" placeholder="Contoh: Shopee PayLater" /></label><label>Kategori<select name="bill_category"><option value="personal">Pribadi</option><option value="shopee">Shopee</option><option value="application">Aplikasi</option><option value="other">Lainnya</option></select></label>${calendarField('due_date', 'Jatuh tempo', today())}<div class="form-row"><label>Nominal (Rp)<input name="default_amount" type="number" inputmode="numeric" min="1" required placeholder="Contoh: 100000" /></label><label>Jumlah bulan<input name="repeat_months" type="number" inputmode="numeric" min="1" max="36" value="1" required /></label></div><label>Penanggung<select name="responsible_person_id"><option value="">Bersama</option>${personOptions()}</select></label><label>Bayar dari<select name="default_source_account_id"><option value="">Pilih nanti</option>${accountOptions(defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Simpan tagihan</button><p class="form-message" role="status"></p></form>`);
+  openSheet('Tambah tagihan berulang', 'TAGIHAN', `<form class="stack-form" id="new-bill-form"><label>Nama tagihan<input name="name" required maxlength="80" placeholder="Contoh: Shopee PayLater" /></label><label>Kategori<select name="bill_category"><option value="personal">Pribadi</option><option value="shopee">Shopee</option><option value="application">Aplikasi</option><option value="other">Lainnya</option></select></label>${calendarField('due_date', 'Jatuh tempo', today())}<div class="form-row"><label>Nominal (Rp)${moneyField('default_amount', 'Contoh: 100,000')}</label><label>Jumlah bulan<input name="repeat_months" type="number" inputmode="numeric" min="1" max="36" value="1" required /></label></div><label>Penanggung<select name="responsible_person_id"><option value="">Bersama</option>${personOptions()}</select></label><label>Bayar dari<select name="default_source_account_id"><option value="">Pilih nanti</option>${accountOptions(defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Simpan tagihan</button><p class="form-message" role="status"></p></form>`);
   initCalendarFields($('#new-bill-form'));
   $('#new-bill-form').addEventListener('submit', saveBill);
 }
@@ -365,10 +396,12 @@ async function saveBill(event) {
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
   if (!values.due_date) return formError(form, 'Pilih tanggal jatuh tempo.');
+  const defaultAmount = parseMoney(values.default_amount);
+  if (!defaultAmount) return formError(form, 'Isi nominal tagihan terlebih dahulu.');
   const repeatMonths = Math.max(1, Math.min(Number(values.repeat_months || 1), 36));
   await saveWithButton(form, async () => {
     const { data: recurringBill, error } = await state.client.from('recurring_bills').insert({
-      name: values.name.trim(), bill_category: values.bill_category, default_amount: Number(values.default_amount),
+      name: values.name.trim(), bill_category: values.bill_category, default_amount: defaultAmount,
       due_day: values.due_date ? Number(values.due_date.slice(-2)) : null,
       is_active: repeatMonths === 1,
       responsible_person_id: values.responsible_person_id ? Number(values.responsible_person_id) : null,
@@ -380,7 +413,7 @@ async function saveBill(event) {
     const instances = Array.from({ length: repeatMonths }, (_item, index) => ({
       recurring_bill_id: recurringBill.id,
       bill_month: billMonthValue(values.due_date, index),
-      amount_due: Number(values.default_amount)
+      amount_due: defaultAmount
     }));
     const { error: instanceError } = await state.client.from('bill_instances').insert(instances);
     if (instanceError) {
@@ -480,7 +513,7 @@ function openPayBillSheet(billId) {
   const bill = state.bills.find((item) => item.id === billId);
   if (!bill) return;
   const recurring = bill.recurring_bills || {};
-  openSheet(`Bayar ${recurring.name || 'tagihan'}`, 'BAYAR TAGIHAN', `<form class="stack-form" id="pay-bill-form" data-bill-id="${bill.id}"><label>Nominal dibayar (Rp)<input name="amount" type="number" inputmode="numeric" min="1" required value="${bill.amount_due}" /></label><div class="form-row"><label>Tanggal bayar<input name="paid_on" type="date" value="${today()}" required /></label><label>Dipakai oleh<select name="used_by_person_id">${personOptions(recurring.responsible_person_id)}</select></label></div><label>Bayar dari<select name="from_account_id" required>${accountOptions(recurring.default_source_account_id || defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note" placeholder="${escapeHtml(recurring.name || '')}"></textarea></label><button class="primary-button" type="submit">Tandai sudah dibayar</button><p class="form-message" role="status"></p></form>`);
+  openSheet(`Bayar ${recurring.name || 'tagihan'}`, 'BAYAR TAGIHAN', `<form class="stack-form" id="pay-bill-form" data-bill-id="${bill.id}"><label>Nominal dibayar (Rp)${moneyField('amount', 'Contoh: 100,000', bill.amount_due)}</label><div class="form-row"><label>Tanggal bayar<input name="paid_on" type="date" value="${today()}" required /></label><label>Dipakai oleh<select name="used_by_person_id">${personOptions(recurring.responsible_person_id)}</select></label></div><label>Bayar dari<select name="from_account_id" required>${accountOptions(recurring.default_source_account_id || defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note" placeholder="${escapeHtml(recurring.name || '')}"></textarea></label><button class="primary-button" type="submit">Tandai sudah dibayar</button><p class="form-message" role="status"></p></form>`);
   $('#pay-bill-form').addEventListener('submit', saveBillPayment);
 }
 
@@ -489,9 +522,11 @@ async function saveBillPayment(event) {
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
   const bill = state.bills.find((item) => item.id === Number(form.dataset.billId));
+  const amount = parseMoney(values.amount);
+  if (!amount) return formError(form, 'Isi nominal pembayaran terlebih dahulu.');
   await saveWithButton(form, async () => {
     const { data: entry, error: entryError } = await state.client.from('ledger_entries').insert({
-      entry_type: 'bill', category: bill.recurring_bills?.bill_category || 'other', amount: Number(values.amount),
+      entry_type: 'bill', category: bill.recurring_bills?.bill_category || 'other', amount,
       entry_date: values.paid_on, from_account_id: Number(values.from_account_id),
       used_by_person_id: values.used_by_person_id ? Number(values.used_by_person_id) : null,
       note: values.note.trim() || bill.recurring_bills?.name || null
@@ -506,7 +541,7 @@ async function saveBillPayment(event) {
 }
 
 function openNewGoalSheet() {
-  openSheet('Buat target tabungan', 'TABUNGAN', `<form class="stack-form" id="new-goal-form"><label>Nama target<input name="name" required maxlength="80" placeholder="Contoh: Liburan berdua" /></label><label>Target nominal (Rp)<input name="target_amount" type="number" inputmode="numeric" min="1" required placeholder="Contoh: 5000000" /></label><label>Target tanggal (opsional)<input name="target_date" type="date" /></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Buat target</button><p class="form-message" role="status"></p></form>`);
+  openSheet('Buat target tabungan', 'TABUNGAN', `<form class="stack-form" id="new-goal-form"><label>Nama target<input name="name" required maxlength="80" placeholder="Contoh: Liburan berdua" /></label><label>Target nominal (Rp)${moneyField('target_amount', 'Contoh: 5,000,000')}</label><label>Target tanggal (opsional)<input name="target_date" type="date" /></label><label>Catatan (opsional)<textarea name="note"></textarea></label><button class="primary-button" type="submit">Buat target</button><p class="form-message" role="status"></p></form>`);
   $('#new-goal-form').addEventListener('submit', saveGoal);
 }
 
@@ -514,8 +549,10 @@ async function saveGoal(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const values = Object.fromEntries(new FormData(form));
+  const targetAmount = parseMoney(values.target_amount);
+  if (!targetAmount) return formError(form, 'Isi target nominal terlebih dahulu.');
   await saveWithButton(form, async () => {
-    const { error } = await state.client.from('savings_goals').insert({ name: values.name.trim(), target_amount: Number(values.target_amount), target_date: values.target_date || null, note: values.note.trim() || null });
+    const { error } = await state.client.from('savings_goals').insert({ name: values.name.trim(), target_amount: targetAmount, target_date: values.target_date || null, note: values.note.trim() || null });
     if (error) throw error;
   }, 'Target tabungan dibuat.');
 }
@@ -523,7 +560,7 @@ async function saveGoal(event) {
 function openGoalDepositSheet(goalId) {
   const goal = state.goals.find((item) => item.id === goalId);
   if (!goal) return;
-  openSheet(`Setor ke ${goal.name}`, 'TABUNGAN', `<form class="stack-form" id="goal-deposit-form" data-goal-id="${goal.id}"><label>Nominal setoran (Rp)<input name="amount" type="number" inputmode="numeric" min="1" required placeholder="Contoh: 100000" /></label><label>Dari rekening<select name="from_account_id" required>${accountOptions(defaultSource('saving'))}</select></label><label>Kontributor<select name="contributed_by_person_id">${personOptions(state.me.id)}</select></label><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label><button class="primary-button" type="submit">Simpan setoran</button><p class="form-message" role="status"></p></form>`);
+  openSheet(`Setor ke ${goal.name}`, 'TABUNGAN', `<form class="stack-form" id="goal-deposit-form" data-goal-id="${goal.id}"><label>Nominal setoran (Rp)${moneyField('amount', 'Contoh: 100,000')}</label><label>Dari rekening<select name="from_account_id" required>${accountOptions(defaultSource('saving'))}</select></label><label>Kontributor<select name="contributed_by_person_id">${personOptions(state.me.id)}</select></label><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label><button class="primary-button" type="submit">Simpan setoran</button><p class="form-message" role="status"></p></form>`);
   $('#goal-deposit-form').addEventListener('submit', saveGoalDeposit);
 }
 
@@ -533,16 +570,18 @@ async function saveGoalDeposit(event) {
   const values = Object.fromEntries(new FormData(form));
   const goal = state.goals.find((item) => item.id === Number(form.dataset.goalId));
   const savingsAccount = state.accounts.find((account) => account.account_type === 'savings');
+  const amount = parseMoney(values.amount);
   if (!savingsAccount) return formError(form, 'Buat rekening dengan tipe savings terlebih dahulu.');
+  if (!amount) return formError(form, 'Isi nominal setoran terlebih dahulu.');
   await saveWithButton(form, async () => {
     const { data: entry, error: entryError } = await state.client.from('ledger_entries').insert({
-      entry_type: 'saving', category: 'savings', amount: Number(values.amount), entry_date: values.entry_date,
+      entry_type: 'saving', category: 'savings', amount, entry_date: values.entry_date,
       from_account_id: Number(values.from_account_id), to_account_id: savingsAccount.id,
       note: `Setoran: ${goal.name}`
     }).select('id').single();
     if (entryError) throw entryError;
     const { error: contributionError } = await state.client.from('savings_contributions').insert({
-      goal_id: goal.id, ledger_entry_id: entry.id, contributed_by_person_id: values.contributed_by_person_id ? Number(values.contributed_by_person_id) : null, amount: Number(values.amount)
+      goal_id: goal.id, ledger_entry_id: entry.id, contributed_by_person_id: values.contributed_by_person_id ? Number(values.contributed_by_person_id) : null, amount
     });
     if (contributionError) {
       await state.client.from('ledger_entries').delete().eq('id', entry.id);
@@ -556,7 +595,7 @@ function openGoalWithdrawalSheet(goalId) {
   if (!goal) return;
   const savingsAccount = state.accounts.find((account) => account.account_type === 'savings');
   if (!savingsAccount) return toast('Rekening tabungan belum tersedia.');
-  openSheet(`Tarik dari ${goal.name}`, 'TARIK TABUNGAN', `<form class="stack-form" id="goal-withdrawal-form" data-goal-id="${goal.id}"><label>Nominal ditarik (Rp)<input name="amount" type="number" inputmode="numeric" min="1" max="${goal.saved_amount}" required placeholder="Maks. ${goal.saved_amount}" /></label><p class="helper-text">Tersimpan pada target ini: ${formatMoney(goal.saved_amount)}. Progres target akan berkurang sesuai nominal penarikan.</p><label>Masuk ke rekening<select name="to_account_id" required>${accountOptions(defaultSource('saving'))}</select></label><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label><label>Catatan (opsional)<textarea name="note" placeholder="Contoh: kebutuhan mendesak"></textarea></label><button class="primary-button" type="submit">Tarik tabungan</button><p class="form-message" role="status"></p></form>`);
+  openSheet(`Tarik dari ${goal.name}`, 'TARIK TABUNGAN', `<form class="stack-form" id="goal-withdrawal-form" data-goal-id="${goal.id}"><label>Nominal ditarik (Rp)${moneyField('amount', `Maks. ${formatMoneyInputValue(goal.saved_amount)}`)}</label><p class="helper-text">Tersimpan pada target ini: ${formatMoney(goal.saved_amount)}. Progres target akan berkurang sesuai nominal penarikan.</p><label>Masuk ke rekening<select name="to_account_id" required>${accountOptions(defaultSource('saving'))}</select></label><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label><label>Catatan (opsional)<textarea name="note" placeholder="Contoh: kebutuhan mendesak"></textarea></label><button class="primary-button" type="submit">Tarik tabungan</button><p class="form-message" role="status"></p></form>`);
   $('#goal-withdrawal-form').addEventListener('submit', saveGoalWithdrawal);
 }
 
@@ -566,7 +605,8 @@ async function saveGoalWithdrawal(event) {
   const values = Object.fromEntries(new FormData(form));
   const goal = state.goals.find((item) => item.id === Number(form.dataset.goalId));
   const savingsAccount = state.accounts.find((account) => account.account_type === 'savings');
-  const amount = Number(values.amount);
+  const amount = parseMoney(values.amount);
+  if (!amount) return formError(form, 'Isi nominal penarikan terlebih dahulu.');
   if (amount > Number(goal.saved_amount)) return formError(form, 'Nominal tidak boleh lebih besar dari saldo target.');
   if (String(savingsAccount.id) === values.to_account_id) return formError(form, 'Pilih rekening tujuan selain rekening tabungan.');
   await saveWithButton(form, async () => {
@@ -612,6 +652,7 @@ function openSheet(title, kicker, content) {
   $('#sheet-title').textContent = title;
   $('#sheet-kicker').textContent = kicker;
   $('#sheet-content').innerHTML = content;
+  initMoneyInputs($('#sheet-content'));
   $('#sheet-backdrop').hidden = false;
   $('#bottom-sheet').hidden = false;
   document.body.style.overflow = 'hidden';
