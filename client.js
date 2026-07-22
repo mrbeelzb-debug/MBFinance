@@ -61,7 +61,6 @@ async function init() {
 function bindStaticEvents() {
   $('#sheet-close').addEventListener('click', closeSheet);
   $('#sheet-backdrop').addEventListener('click', closeSheet);
-  $('#generate-bills').addEventListener('click', generateBills);
   $('#history-mode').addEventListener('change', syncHistoryDateFields);
   $('#activity-filter').addEventListener('submit', applyHistoryFilter);
   $('#history-reset').addEventListener('click', resetHistoryFilter);
@@ -353,8 +352,8 @@ function renderBillRow(bill) {
   const tag = recurring.bill_category ? categoryLabels[recurring.bill_category] : 'Tagihan';
   const responsible = personNameById(recurring.responsible_person_id) || 'Bersama';
   const dueDate = billDueDate(bill);
-  const action = bill.status === 'pending' ? `<button class="small-button" type="button" data-action="pay-bill" data-id="${bill.id}">Bayar</button>` : '';
-  return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><b>${formatMoney(bill.amount_due)}</b>${action}</article>`;
+  const payAction = bill.status === 'pending' ? `<button class="small-button" type="button" data-action="pay-bill" data-id="${bill.id}">Bayar</button>` : '';
+  return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><div class="bill-actions"><b>${formatMoney(bill.amount_due)}</b><div><button class="danger-button" type="button" data-action="delete-bill" data-id="${bill.id}">Hapus</button>${payAction}</div></div></article>`;
 }
 
 function renderBillSummaries() {
@@ -453,6 +452,7 @@ function handleActionClick(event) {
   if (action === 'new-bill') openNewBillSheet();
   if (action === 'new-goal') openNewGoalSheet();
   if (action === 'pay-bill') openPayBillSheet(Number(id));
+  if (action === 'delete-bill') deleteBill(Number(id));
   if (action === 'deposit-goal') openGoalDepositSheet(Number(id));
   if (action === 'withdraw-goal') openGoalWithdrawalSheet(Number(id));
 }
@@ -677,6 +677,19 @@ async function generateBills() {
   } finally {
     button.disabled = false;
   }
+}
+
+async function deleteBill(billId) {
+  const bill = state.bills.find((item) => item.id === billId);
+  if (!bill) return;
+  const name = bill.recurring_bills?.name || 'tagihan ini';
+  if (!window.confirm(`Hapus ${name} dari daftar tagihan?`)) return;
+
+  if (demoMode) return toast('Mode demo: tagihan tidak dihapus.');
+  const { error } = await state.client.from('bill_instances').delete().eq('id', billId);
+  if (error) return toast(error.message || 'Tagihan gagal dihapus.');
+  toast('Tagihan dihapus.');
+  await refreshAndRender();
 }
 
 function openPayBillSheet(billId) {
