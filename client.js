@@ -31,6 +31,8 @@ const $ = (selector) => document.querySelector(selector);
 const currentMonth = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 const today = () => new Date().toISOString().slice(0, 10);
 const formatMoney = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
+// Saldo belum boleh tampak sebagai utang saat dana awal belum dicatat.
+const formatBalance = (value) => formatMoney(Math.max(Number(value) || 0, 0));
 const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 const formatMonth = (value) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 const formatCalendarMonth = (date) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
@@ -169,12 +171,12 @@ async function loadData() {
 function renderAll() {
   const overview = state.overview;
   $('#greeting').textContent = 'Hallo, Bryan & Maddy!';
-  $('#total-combined').textContent = formatMoney(overview.total_combined_money);
-  $('#total-held-maddy').textContent = formatMoney(overview.total_held_by_maddy);
-  $('#maddy-held').textContent = formatMoney(overview.total_held_by_maddy);
-  $('#bryan-held').textContent = formatMoney(overview.total_held_by_bryan || overview.total_held_by_others);
-  $('#total-savings').textContent = formatMoney(overview.total_savings);
-  $('#total-savings-row').textContent = formatMoney(overview.total_savings);
+  $('#total-combined').textContent = formatBalance(overview.total_combined_money);
+  $('#total-held-maddy').textContent = formatBalance(overview.total_held_by_maddy);
+  $('#maddy-held').textContent = formatBalance(overview.total_held_by_maddy);
+  $('#bryan-held').textContent = formatBalance(overview.total_held_by_bryan || overview.total_held_by_others);
+  $('#total-savings').textContent = formatBalance(overview.total_savings);
+  $('#total-savings-row').textContent = formatBalance(overview.total_savings);
   $('#monthly-salary').textContent = formatMoney(state.cashflow.salary_income);
   $('#monthly-usage').textContent = formatMoney(state.cashflow.total_usage);
   $('#monthly-daily').textContent = formatMoney(state.cashflow.daily_usage);
@@ -188,7 +190,7 @@ function renderAccounts() {
   $('#account-list').innerHTML = state.accounts.length ? state.accounts.map((account) => {
     const balance = balances.get(String(account.id)) || account;
     const holder = balance.holder_name ? `Dipegang ${balance.holder_name}` : 'Pemegang belum diatur';
-    return `<article class="account-row"><span class="round-icon account-icon">${accountIcon(account.account_type)}</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(holder)}</small></div><b>${formatMoney(balance.balance)}</b></article>`;
+    return `<article class="account-row"><span class="round-icon account-icon">${accountIcon(account.account_type)}</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(holder)}</small></div><b>${formatBalance(balance.balance)}</b></article>`;
   }).join('') : emptyState('Belum ada rekening. Tambahkan melalui Supabase terlebih dahulu.');
 }
 
