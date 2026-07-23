@@ -397,7 +397,15 @@ function billMonthlySummary(bills = []) {
   });
   return [...groups.values()]
     .map((group) => ({ ...group, bills: sortBillsNewestFirst(group.bills) }))
-    .sort((a, b) => b.month.localeCompare(a.month));
+    .sort((a, b) => sortBillMonthsNearestFirst(a.month, b.month));
+}
+
+function sortBillMonthsNearestFirst(a, b) {
+  const month = currentMonth();
+  const aIsPast = a < month;
+  const bIsPast = b < month;
+  if (aIsPast !== bIsPast) return Number(aIsPast) - Number(bIsPast);
+  return aIsPast ? b.localeCompare(a) : a.localeCompare(b);
 }
 
 function billDueDateSummary(bills = []) {
