@@ -19,6 +19,7 @@ const state = {
   demoEntries: [],
   me: null,
   billPersonFilter: 'all',
+  homeBillPersonFilter: 'all',
   historyFilter: { mode: 'all', singleDate: '', fromDate: '', toDate: '' }
 };
 
@@ -68,6 +69,7 @@ function bindStaticEvents() {
   $('#activity-filter').addEventListener('submit', applyHistoryFilter);
   $('#history-reset').addEventListener('click', resetHistoryFilter);
   $('#bill-person-filter').addEventListener('click', applyBillPersonFilter);
+  $('#home-bill-filter').addEventListener('click', applyHomeBillPersonFilter);
   syncHistoryDateFields();
   document.addEventListener('click', handleActionClick);
 }
@@ -372,8 +374,24 @@ function renderBillPersonFilter() {
 }
 
 function billsForSelectedPerson() {
-  if (state.billPersonFilter === 'all') return state.bills;
-  return state.bills.filter((bill) => personNameById(bill.recurring_bills?.responsible_person_id).toLowerCase() === state.billPersonFilter);
+  return billsForPersonFilter(state.billPersonFilter);
+}
+
+function applyHomeBillPersonFilter(event) {
+  const button = event.target.closest('[data-home-bill-person]');
+  if (!button) return;
+  const person = button.dataset.homeBillPerson;
+  state.homeBillPersonFilter = state.homeBillPersonFilter === person ? 'all' : person;
+  renderBillSummaries();
+}
+
+function billsForHomeSelectedPerson() {
+  return billsForPersonFilter(state.homeBillPersonFilter);
+}
+
+function billsForPersonFilter(filter) {
+  if (filter === 'all') return state.bills;
+  return state.bills.filter((bill) => personNameById(bill.recurring_bills?.responsible_person_id).toLowerCase() === filter);
 }
 
 function renderBillRow(bill) {
@@ -390,20 +408,32 @@ function renderBillRow(bill) {
 
 function renderBillSummaries() {
   const summary = billSummaryByPerson();
-  const pendingCount = state.bills.filter((bill) => bill.status === 'pending').length;
+  const bills = billsForHomeSelectedPerson();
+  const pendingCount = bills.filter((bill) => bill.status === 'pending').length;
+  const person = state.homeBillPersonFilter === 'all' ? null : state.people.find((item) => item.name.toLowerCase() === state.homeBillPersonFilter);
+  $('#home-bill-title').textContent = person ? `Tagihan ${person.name}` : 'Tagihan Bryan & Maddy';
   $('#home-bill-period').textContent = `${pendingCount} tagihan belum dibayar`;
   setBillSummary('home-maddy', summary.Maddy);
   setBillSummary('home-bryan', summary.Bryan);
   setBillSummary('page-maddy', summary.Maddy);
   setBillSummary('page-bryan', summary.Bryan);
+  renderHomeBillPersonFilter();
   renderMonthlyBillSummary();
 }
 
 function renderMonthlyBillSummary() {
-  const rows = billMonthlySummary(state.bills).filter((month) => month.pendingCount > 0);
+  const rows = billMonthlySummary(billsForHomeSelectedPerson()).filter((month) => month.pendingCount > 0);
   $('#home-monthly-bill-list').innerHTML = rows.length ? rows.map((month) => (
     `<article class="monthly-bill-row"><div><strong>${formatMonth(month.month)}</strong><small>${month.pendingCount} tagihan belum dibayar</small></div><b>${formatMoney(month.pendingTotal)}</b></article>`
   )).join('') : emptyState('Belum ada tagihan bulanan.');
+}
+
+function renderHomeBillPersonFilter() {
+  document.querySelectorAll('[data-home-bill-person]').forEach((button) => {
+    const active = button.dataset.homeBillPerson === state.homeBillPersonFilter;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
 }
 
 function billMonthlySummary(bills = []) {

@@ -56,23 +56,6 @@
             <strong id="total-savings-row">Rp0</strong>
           </article>
 
-          <section class="section-block compact-section">
-            <div class="section-heading"><div><p class="eyebrow">TAGIHAN</p><h2>Tagihan Bryan &amp; Maddy</h2><p id="home-bill-period" class="muted">Memuat...</p></div></div>
-            <div class="bill-summary-grid">
-              <article class="bill-summary-card maddy-bill-card">
-                <div class="person-heading"><span class="avatar maddy-avatar">M</span><span>Maddy</span></div>
-                <strong id="home-maddy-bill-total">Rp0</strong>
-                <small id="home-maddy-bill-count">0 tagihan</small>
-              </article>
-              <article class="bill-summary-card bryan-bill-card">
-                <div class="person-heading"><span class="avatar bryan-avatar">B</span><span>Bryan</span></div>
-                <strong id="home-bryan-bill-total">Rp0</strong>
-                <small id="home-bryan-bill-count">0 tagihan</small>
-              </article>
-            </div>
-            <div id="home-monthly-bill-list" class="monthly-bill-list"></div>
-          </section>
-
           <section class="section-block">
             <div class="section-heading"><div><p class="eyebrow">CATAT CEPAT</p><h2>Apa yang terjadi hari ini?</h2></div></div>
             <div class="quick-grid">
@@ -81,6 +64,23 @@
               <button class="quick-action transfer-action" data-action="new-transfer" type="button"><span>⇄</span>Bagi gaji</button>
               <button class="quick-action saving-action" data-action="new-saving" type="button"><span>⌁</span>Menabung</button>
             </div>
+          </section>
+
+          <section class="section-block compact-section">
+            <div class="section-heading"><div><p class="eyebrow">TAGIHAN</p><h2 id="home-bill-title">Tagihan Bryan &amp; Maddy</h2><p id="home-bill-period" class="muted">Memuat...</p></div></div>
+            <div id="home-bill-filter" class="bill-summary-grid" role="group" aria-label="Filter tagihan beranda berdasarkan pemilik">
+              <button class="bill-summary-card maddy-bill-card home-bill-filter" type="button" data-home-bill-person="maddy" aria-pressed="false">
+                <div class="person-heading"><span class="avatar maddy-avatar">M</span><span>Maddy</span></div>
+                <strong id="home-maddy-bill-total">Rp0</strong>
+                <small id="home-maddy-bill-count">0 tagihan</small>
+              </button>
+              <button class="bill-summary-card bryan-bill-card home-bill-filter" type="button" data-home-bill-person="bryan" aria-pressed="false">
+                <div class="person-heading"><span class="avatar bryan-avatar">B</span><span>Bryan</span></div>
+                <strong id="home-bryan-bill-total">Rp0</strong>
+                <small id="home-bryan-bill-count">0 tagihan</small>
+              </button>
+            </div>
+            <div id="home-monthly-bill-list" class="monthly-bill-list"></div>
           </section>
 
           <section class="section-block">
