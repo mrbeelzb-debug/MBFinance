@@ -355,7 +355,10 @@ function renderBillRow(bill) {
   const responsible = personNameById(recurring.responsible_person_id) || 'Bersama';
   const dueDate = billDueDate(bill);
   const payAction = bill.status === 'pending' ? `<button class="small-button" type="button" data-action="pay-bill" data-id="${bill.id}">Bayar</button>` : '';
-  return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><div class="bill-actions"><b>${formatMoney(bill.amount_due)}</b><div><button class="danger-button" type="button" data-action="delete-bill" data-id="${bill.id}">Hapus</button>${payAction}</div></div></article>`;
+  const amount = bill.status === 'pending'
+    ? `<button class="bill-amount-button" type="button" data-action="edit-bill-amount" data-id="${bill.id}" aria-label="Ubah nominal ${escapeHtml(recurring.name || 'tagihan')}">${formatMoney(bill.amount_due)} <span aria-hidden="true">&#9998;</span></button>`
+    : `<b>${formatMoney(bill.amount_due)}</b>`;
+  return `<article class="bill-row"><span class="round-icon entry-icon bill">▣</span><div><strong>${escapeHtml(recurring.name || 'Tagihan')}</strong><small>${escapeHtml(tag)} · ${escapeHtml(responsible)} · ${formatDate(dueDate)}</small><span class="status ${bill.status}">${bill.status === 'paid' ? 'Lunas' : bill.status === 'skipped' ? 'Lewati' : 'Belum bayar'}</span></div><div class="bill-actions">${amount}<div><button class="danger-button" type="button" data-action="delete-bill" data-id="${bill.id}">Hapus</button>${payAction}</div></div></article>`;
 }
 
 function renderBillSummaries() {
@@ -456,6 +459,7 @@ function handleActionClick(event) {
   if (action === 'new-bill') openNewBillSheet();
   if (action === 'new-goal') openNewGoalSheet();
   if (action === 'pay-bill') openPayBillSheet(Number(id));
+  if (action === 'edit-bill-amount') openEditBillAmountSheet(Number(id));
   if (action === 'delete-bill') deleteBill(Number(id));
   if (action === 'deposit-goal') openGoalDepositSheet(Number(id));
   if (action === 'withdraw-goal') openGoalWithdrawalSheet(Number(id));
@@ -702,6 +706,36 @@ function openPayBillSheet(billId) {
   const recurring = bill.recurring_bills || {};
   openSheet(`Bayar ${recurring.name || 'tagihan'}`, 'BAYAR TAGIHAN', `<form class="stack-form" id="pay-bill-form" data-bill-id="${bill.id}"><label>Nominal dibayar (Rp)${moneyField('amount', 'Contoh: 100,000', bill.amount_due)}</label><div class="form-row"><label>Tanggal bayar<input name="paid_on" type="date" value="${today()}" required /></label><label>Dipakai oleh<select name="used_by_person_id">${personOptions(recurring.responsible_person_id)}</select></label></div><label>Bayar dari<select name="from_account_id" required>${accountOptions(recurring.default_source_account_id || defaultSource('expense'))}</select></label><label>Catatan (opsional)<textarea name="note" placeholder="${escapeHtml(recurring.name || '')}"></textarea></label><button class="primary-button" type="submit">Tandai sudah dibayar</button><p class="form-message" role="status"></p></form>`);
   $('#pay-bill-form').addEventListener('submit', saveBillPayment);
+}
+
+function openEditBillAmountSheet(billId) {
+  const bill = state.bills.find((item) => item.id === billId);
+  if (!bill) return;
+  if (bill.status !== 'pending') return toast('Nominal tagihan yang sudah dibayar tidak dapat diubah.');
+
+  const name = bill.recurring_bills?.name || 'tagihan';
+  openSheet(`Ubah nominal ${name}`, 'EDIT TAGIHAN', `<form class="stack-form" id="edit-bill-amount-form" data-bill-id="${bill.id}"><label>Nominal tagihan (Rp)${moneyField('amount_due', 'Contoh: 100,000', bill.amount_due)}</label><p class="helper-text">Perubahan hanya berlaku untuk tagihan ini.</p><button class="primary-button" type="submit">Simpan nominal</button><p class="form-message" role="status"></p></form>`);
+  $('#edit-bill-amount-form').addEventListener('submit', saveBillAmount);
+}
+
+async function saveBillAmount(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const billId = Number(form.dataset.billId);
+  const amountDue = parseMoney(new FormData(form).get('amount_due'));
+  if (!amountDue) return formError(form, 'Isi nominal tagihan terlebih dahulu.');
+
+  await saveWithButton(form, async () => {
+    const { data, error } = await state.client
+      .from('bill_instances')
+      .update({ amount_due: amountDue })
+      .eq('id', billId)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error('Tagihan sudah dibayar atau tidak ditemukan.');
+  }, 'Nominal tagihan diperbarui.');
 }
 
 async function saveBillPayment(event) {
