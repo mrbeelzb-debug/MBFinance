@@ -345,7 +345,9 @@ function renderBillsView() {
     ? `${state.bills.length} tagihan · ${pending.length} belum dibayar · Total ${formatMoney(pendingTotal)}`
     : 'Belum ada tagihan.';
   $('#bill-list').innerHTML = state.bills.length
-    ? billMonthlySummary(state.bills).map((month) => `<div class="bill-month-heading"><span>${formatMonth(month.month)}</span><b>${formatMoney(month.pendingTotal)}</b></div>${month.bills.map(renderBillRow).join('')}`).join('')
+    ? billMonthlySummary(state.bills).map((month) => (
+      `<div class="bill-month-heading"><span>${formatMonth(month.month)}</span><b>${formatMoney(month.pendingTotal)}</b></div>${billDueDateSummary(month.bills).map((group) => `<div class="bill-date-heading"><span>${formatDate(group.date)}</span><b>${formatMoney(group.pendingTotal)}</b></div>${group.bills.map(renderBillRow).join('')}`).join('')}`
+    )).join('')
     : emptyState('Belum ada tagihan. Tambahkan tagihan baru terlebih dahulu.');
 }
 
@@ -396,6 +398,25 @@ function billMonthlySummary(bills = []) {
   return [...groups.values()]
     .map((group) => ({ ...group, bills: sortBillsNewestFirst(group.bills) }))
     .sort((a, b) => b.month.localeCompare(a.month));
+}
+
+function billDueDateSummary(bills = []) {
+  const groups = new Map();
+  sortBillsNewestFirst(bills).forEach((bill) => {
+    const date = billDueDate(bill);
+    if (!groups.has(date)) groups.set(date, { date, bills: [], count: 0, pendingCount: 0, total: 0, pendingTotal: 0 });
+    const group = groups.get(date);
+    group.bills.push(bill);
+    group.count += 1;
+    group.total += Number(bill.amount_due || 0);
+    if (bill.status === 'pending') {
+      group.pendingCount += 1;
+      group.pendingTotal += Number(bill.amount_due || 0);
+    }
+  });
+  return [...groups.values()]
+    .map((group) => ({ ...group, bills: sortBillsNewestFirst(group.bills) }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 function sortBillsNewestFirst(bills = []) {
