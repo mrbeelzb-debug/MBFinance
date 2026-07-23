@@ -146,8 +146,8 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .bill-amount-button span { color: var(--maddy-dark); font-size: 12px; }
 .bill-amount-button:focus-visible { outline: 2px solid var(--maddy); outline-offset: 4px; border-radius: 4px; }
 .danger-button { min-height: 35px; padding: 0 10px; border: 1px solid #743650; border-radius: 11px; background: #321a28; color: var(--maddy-dark); font-size: 11px; font-weight: 800; }
-.bill-month-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 3px 2px; color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .7px; text-transform: uppercase; }
-.bill-month-heading b { color: var(--ink); font-size: 12px; letter-spacing: 0; text-transform: none; }
+.bill-date-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 3px 2px; color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .7px; text-transform: uppercase; }
+.bill-date-heading b { color: var(--ink); font-size: 12px; letter-spacing: 0; text-transform: none; }
 .status { display: inline-block; margin-top: 5px; padding: 3px 7px; border-radius: 9px; font-size: 9px; font-weight: 900; letter-spacing: .3px; text-transform: uppercase; }
 .status.pending { background: #fff1d8; color: #a65b00; }
 .status.paid { background: var(--green-soft); color: var(--green); }
