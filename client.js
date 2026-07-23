@@ -424,7 +424,7 @@ function billDueDateSummary(bills = []) {
   });
   return [...groups.values()]
     .map((group) => ({ ...group, bills: sortBillsNewestFirst(group.bills) }))
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function sortBillsNewestFirst(bills = []) {
