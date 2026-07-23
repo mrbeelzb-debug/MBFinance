@@ -1,4 +1,4 @@
-const CACHE = 'mb-finance-v6';
+const CACHE = 'mb-finance-v7';
 const APP_FILES = ['./', './index.html', './styles.css', './client.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {

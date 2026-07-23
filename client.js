@@ -163,7 +163,7 @@ async function loadData() {
   const { data: bills, error: billsError } = await buildBillsQuery();
   if (billsError) throw billsError;
   state.billMonth = currentMonth();
-  state.bills = bills || [];
+  state.bills = sortBillsNewestFirst(bills || []);
 }
 
 function renderAll() {
@@ -388,7 +388,9 @@ function billMonthlySummary(bills = []) {
       group.pendingTotal += Number(bill.amount_due || 0);
     }
   });
-  return [...groups.values()].sort((a, b) => b.month.localeCompare(a.month));
+  return [...groups.values()]
+    .map((group) => ({ ...group, bills: sortBillsNewestFirst(group.bills) }))
+    .sort((a, b) => b.month.localeCompare(a.month));
 }
 
 function sortBillsNewestFirst(bills = []) {
