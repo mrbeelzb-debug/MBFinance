@@ -18,6 +18,7 @@ const state = {
   entries: [],
   demoEntries: [],
   me: null,
+  billPersonFilter: 'all',
   historyFilter: { mode: 'all', singleDate: '', fromDate: '', toDate: '' }
 };
 
@@ -66,6 +67,7 @@ function bindStaticEvents() {
   $('#history-mode').addEventListener('change', syncHistoryDateFields);
   $('#activity-filter').addEventListener('submit', applyHistoryFilter);
   $('#history-reset').addEventListener('click', resetHistoryFilter);
+  $('#bill-person-filter').addEventListener('click', applyBillPersonFilter);
   syncHistoryDateFields();
   document.addEventListener('click', handleActionClick);
 }
@@ -338,17 +340,40 @@ function renderBills() {
 }
 
 function renderBillsView() {
-  const pending = state.bills.filter((bill) => bill.status === 'pending');
+  const bills = billsForSelectedPerson();
+  const pending = bills.filter((bill) => bill.status === 'pending');
   const pendingTotal = pending.reduce((sum, bill) => sum + Number(bill.amount_due || 0), 0);
-  $('#bill-title').textContent = 'Semua tagihan';
-  $('#bill-overview').textContent = state.bills.length
-    ? `${state.bills.length} tagihan · ${pending.length} belum dibayar · Total ${formatMoney(pendingTotal)}`
+  const person = state.billPersonFilter === 'all' ? null : state.people.find((item) => item.name.toLowerCase() === state.billPersonFilter);
+  $('#bill-title').textContent = person ? `Tagihan ${person.name}` : 'Semua tagihan';
+  $('#bill-overview').textContent = bills.length
+    ? `${bills.length} tagihan · ${pending.length} belum dibayar · Total ${formatMoney(pendingTotal)}`
     : 'Belum ada tagihan.';
-  $('#bill-list').innerHTML = state.bills.length
-    ? billMonthlySummary(state.bills).map((month) => (
+  renderBillPersonFilter();
+  $('#bill-list').innerHTML = bills.length
+    ? billMonthlySummary(bills).map((month) => (
       `<div class="bill-month-heading"><span>${formatMonth(month.month)}</span><b>${formatMoney(month.pendingTotal)}</b></div>${billDueDateSummary(month.bills).map((group) => `<div class="bill-date-heading"><span>${formatDate(group.date)}</span><b>${formatMoney(group.pendingTotal)}</b></div>${group.bills.map(renderBillRow).join('')}`).join('')}`
     )).join('')
     : emptyState('Belum ada tagihan. Tambahkan tagihan baru terlebih dahulu.');
+}
+
+function applyBillPersonFilter(event) {
+  const button = event.target.closest('[data-bill-person]');
+  if (!button) return;
+  state.billPersonFilter = button.dataset.billPerson;
+  renderBillsView();
+}
+
+function renderBillPersonFilter() {
+  document.querySelectorAll('[data-bill-person]').forEach((button) => {
+    const active = button.dataset.billPerson === state.billPersonFilter;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function billsForSelectedPerson() {
+  if (state.billPersonFilter === 'all') return state.bills;
+  return state.bills.filter((bill) => personNameById(bill.recurring_bills?.responsible_person_id).toLowerCase() === state.billPersonFilter);
 }
 
 function renderBillRow(bill) {
