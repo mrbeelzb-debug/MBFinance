@@ -29,9 +29,17 @@ const categoryLabels = {
 const typeLabels = {
   income: 'Pemasukan', expense: 'Pengeluaran', bill: 'Tagihan', transfer: 'Transfer', saving: 'Setor tabungan', saving_withdrawal: 'Tarik tabungan', adjustment: 'Penyesuaian'
 };
+const DAILY_PLAN_DAYS = 30;
+const DAILY_BASELINE_BUDGET = 100000;
 const $ = (selector) => document.querySelector(selector);
-const currentMonth = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
-const today = () => new Date().toISOString().slice(0, 10);
+const localDateValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const currentMonth = () => `${localDateValue().slice(0, 7)}-01`;
+const today = () => localDateValue();
 const formatMoney = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 // Saldo belum boleh tampak sebagai utang saat dana awal belum dicatat.
 const formatBalance = (value) => formatMoney(Math.max(Number(value) || 0, 0));
@@ -103,9 +111,9 @@ function openDemo() {
   state.overview = { total_combined_money: 5400000, total_held_by_maddy: 5350000, total_held_by_bryan: 50000, total_savings: 1250000 };
   state.cashflow = { salary_income: 5000000, total_usage: 486000, daily_usage: 236000, bills_paid: 180000, saving_added: 250000 };
   state.bills = [
-    { id: 1, amount_due: 180000, status: 'paid', recurring_bills: { name: 'Netflix & Spotify', bill_category: 'application', due_day: 12, responsible_person_id: 2, default_source_account_id: 1 } },
-    { id: 2, amount_due: 325000, status: 'pending', recurring_bills: { name: 'Shopee PayLater', bill_category: 'shopee', due_day: 25, responsible_person_id: 1, default_source_account_id: 1 } },
-    { id: 3, amount_due: 95000, status: 'pending', recurring_bills: { name: 'Pulsa Maddy', bill_category: 'personal', due_day: 28, responsible_person_id: 2, default_source_account_id: 1 } }
+    { id: 1, bill_month: currentMonth(), amount_due: 180000, status: 'paid', recurring_bills: { name: 'Netflix & Spotify', bill_category: 'application', due_day: 12, responsible_person_id: 2, default_source_account_id: 1 } },
+    { id: 2, bill_month: currentMonth(), amount_due: 325000, status: 'pending', recurring_bills: { name: 'Shopee PayLater', bill_category: 'shopee', due_day: 25, responsible_person_id: 1, default_source_account_id: 1 } },
+    { id: 3, bill_month: currentMonth(), amount_due: 95000, status: 'pending', recurring_bills: { name: 'Pulsa Maddy', bill_category: 'personal', due_day: 28, responsible_person_id: 2, default_source_account_id: 1 } }
   ];
   state.goals = [
     { id: 1, name: 'Liburan berdua', target_amount: 5000000, target_date: '2026-12-01', saved_amount: 1250000, progress_percent: 25 },
@@ -204,7 +212,55 @@ function renderAll() {
   $('#monthly-daily').textContent = formatMoney(state.cashflow.daily_usage);
   $('#monthly-bills-paid').textContent = formatMoney(state.cashflow.bills_paid);
   $('#monthly-saving-added').textContent = formatMoney(state.cashflow.saving_added);
-  renderAccounts(); renderEntries(); renderBillSummaries(); renderBillsView(); renderGoals();
+  renderDailyPlan(); renderAccounts(); renderEntries(); renderBillSummaries(); renderBillsView(); renderGoals();
+}
+
+function renderDailyPlan() {
+  const recommendation = dailyRecommendation();
+  $('#daily-plan-total').textContent = formatMoney(recommendation.total);
+  $('#daily-plan-food').textContent = formatMoney(recommendation.food);
+  $('#daily-plan-fuel').textContent = formatMoney(recommendation.fuel);
+  $('#daily-plan-allowance').textContent = formatMoney(recommendation.allowance);
+  $('#daily-plan-days').textContent = `${recommendation.daysLeft} hari`;
+  $('#daily-plan-caption').textContent = recommendation.caption;
+}
+
+function dailyRecommendation() {
+  const recommendationMonth = dailyPlanMonth();
+  const pendingBills = state.bills
+    .filter((bill) => sameMonth(bill.bill_month, recommendationMonth) && bill.status === 'pending')
+    .reduce((total, bill) => total + (Number(bill.amount_due) || 0), 0);
+  const availableMoney = Math.max(0, Number(state.overview.total_combined_money) || 0);
+  const savings = Math.max(0, Number(state.overview.total_savings) || 0);
+  const freeMoney = Math.max(0, availableMoney - savings - pendingBills);
+  const affordableDailyBudget = roundToThousand(freeMoney / DAILY_PLAN_DAYS);
+  const total = Math.min(DAILY_BASELINE_BUDGET, affordableDailyBudget);
+  const food = roundToThousand(total * 0.55);
+  const fuel = roundToThousand(total * 0.25);
+  const allowance = Math.max(0, total - food - fuel);
+  const monthName = formatMonth(recommendationMonth);
+  const caption = total && affordableDailyBudget < DAILY_BASELINE_BUDGET
+    ? `Dana bebas ${formatMoney(freeMoney)} setelah tabungan dan tagihan ${monthName} disisihkan. Agar cukup untuk 30 hari, gunakan maksimal ${formatMoney(total)} per hari.`
+    : total
+      ? `Tagihan ${monthName} sudah disisihkan. Rekomendasi kebutuhan dasar ${formatMoney(DAILY_BASELINE_BUDGET)} per hari untuk 30 hari; sisa dana bebas dapat ditabung atau dialokasikan.`
+    : pendingBills
+      ? `Dana bebas belum tersedia. Sisihkan dulu total tagihan ${monthName} yang belum dibayar sebesar ${formatMoney(pendingBills)}.`
+      : 'Belum ada dana bebas yang bisa dibagi. Tambahkan pemasukan terlebih dahulu.';
+
+  return { daysLeft: DAILY_PLAN_DAYS, total, food, fuel, allowance, caption };
+}
+
+function dailyPlanMonth() {
+  const date = new Date();
+  const isLastDayOfMonth = date.getDate() === new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const monthStart = isLastDayOfMonth
+    ? new Date(date.getFullYear(), date.getMonth() + 1, 1)
+    : new Date(date.getFullYear(), date.getMonth(), 1);
+  return `${localDateValue(monthStart).slice(0, 7)}-01`;
+}
+
+function roundToThousand(value) {
+  return Math.round((Number(value) || 0) / 1000) * 1000;
 }
 
 function renderAccounts() {

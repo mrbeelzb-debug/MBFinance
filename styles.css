@@ -92,6 +92,23 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .section-heading h2, .page-heading h2 { margin-bottom: 0; font-size: 19px; letter-spacing: -.5px; }
 .section-heading .eyebrow, .page-heading .eyebrow { margin-bottom: 4px; }
 .month-chip { padding: 6px 9px; border-radius: 20px; background: #2d2733; color: var(--muted); font-size: 10px; font-weight: 800; }
+.daily-plan-section { margin-top: 22px; }
+.daily-plan-card { margin-top: 13px; padding: 16px; border: 1px solid #5a4674; border-radius: 20px; background: radial-gradient(circle at 100% 0%, rgba(173, 144, 255, .20), transparent 48%), var(--surface); }
+.daily-plan-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.daily-plan-total span { display: block; color: var(--muted); font-size: 12px; }
+.daily-plan-total strong { display: block; margin-top: 4px; color: var(--ink); font-size: 25px; letter-spacing: -.8px; }
+.daily-plan-icon { width: 42px; height: 42px; display: grid !important; flex: 0 0 auto; place-items: center; border-radius: 14px; background: var(--violet-soft); color: var(--violet) !important; font-size: 13px !important; font-weight: 900; }
+.daily-plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.daily-plan-item { min-width: 0; padding: 10px 8px; border-radius: 14px; }
+.daily-plan-item-icon { width: 22px; height: 22px; display: grid; place-items: center; margin-bottom: 8px; border-radius: 8px; font-size: 10px; font-weight: 900; }
+.daily-plan-item small, .daily-plan-item b, .daily-plan-item em { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-plan-item small { color: var(--muted); font-size: 10px; }
+.daily-plan-item b { margin: 4px 0; font-size: 12px; letter-spacing: -.2px; }
+.daily-plan-item em { color: var(--muted); font-size: 9px; font-style: normal; }
+.food-plan { background: #342e21; }.food-plan .daily-plan-item-icon { background: #59491f; color: #ffd675; }
+.fuel-plan { background: var(--bryan-soft); }.fuel-plan .daily-plan-item-icon { background: #294a80; color: var(--bryan-dark); }
+.allowance-plan { background: var(--maddy-soft); }.allowance-plan .daily-plan-item-icon { background: #71304f; color: var(--maddy-dark); }
+.daily-plan-caption { margin: 13px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 13px; }
 .quick-action { min-height: 81px; padding: 9px 4px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 12px rgba(0, 0, 0, .12); font-size: 10px; font-weight: 800; }
 .quick-action span { width: 28px; height: 28px; display: grid; place-items: center; margin: 0 auto 7px; border-radius: 10px; font-size: 19px; }
