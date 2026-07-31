@@ -15,7 +15,7 @@ Mobile-first PWA sederhana untuk keuangan Bryan dan Maddy. UI terhubung langsung
 
 - **Pemasukan**: pilih rekening tujuan dan catat nominalnya.
 - **Pengeluaran**: pilih rekening asal, siapa yang memakai, dan kategori harian/pribadi/Shopee/aplikasi.
-- **Ke Bryan**: memindahkan uang dari Saldo Utama Maddy ke Uang Bryan. Ini tidak mengurangi total uang bersama.
+- **Ke Bryan**: memindahkan alokasi dana ke rekening Uang Bryan. Rekening ini dapat tetap dipegang Maddy bila uangnya masih berada padanya; perpindahan ini tidak mengurangi total uang kalian.
 - **Tagihan**: tambah tagihan berulang sekali, lalu tekan buat daftar tagihan di awal bulan dan bayar dari daftar tersebut.
 - **Tabungan**: buat target, lalu setor dari rekening ke Tabungan Bersama.
 

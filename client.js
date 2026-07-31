@@ -90,15 +90,15 @@ function openDemo() {
   ];
   state.accounts = [
     { id: 1, name: 'Saldo Utama Maddy', account_type: 'bank', holder_id: 2, is_shared: true, is_active: true },
-    { id: 2, name: 'Uang Bryan', account_type: 'cash', holder_id: 1, is_shared: true, is_active: true },
+    { id: 2, name: 'Uang Bryan', account_type: 'cash', holder_id: 2, owner_person_id: 1, is_shared: false, is_active: true },
     { id: 3, name: 'Tabungan Bersama', account_type: 'savings', holder_id: 2, is_shared: true, is_active: true }
   ];
   state.balances = [
     { ...state.accounts[0], holder_name: 'Maddy', holder_is_custodian: true, balance: 4000000 },
-    { ...state.accounts[1], holder_name: 'Bryan', holder_is_custodian: false, balance: 150000 },
+    { ...state.accounts[1], holder_name: 'Maddy', holder_is_custodian: true, owner_name: 'Bryan', balance: 150000 },
     { ...state.accounts[2], holder_name: 'Maddy', holder_is_custodian: true, balance: 1250000 }
   ];
-  state.overview = { total_combined_money: 5400000, total_held_by_maddy: 5250000, total_held_by_bryan: 150000, total_savings: 1250000 };
+  state.overview = { total_combined_money: 5400000, total_held_by_maddy: 5400000, total_held_by_bryan: 0, total_savings: 1250000 };
   state.cashflow = { salary_income: 5000000, total_usage: 486000, daily_usage: 236000, bills_paid: 180000, saving_added: 250000 };
   state.bills = [
     { id: 1, amount_due: 180000, status: 'paid', recurring_bills: { name: 'Netflix & Spotify', bill_category: 'application', due_day: 12, responsible_person_id: 2, default_source_account_id: 1 } },
