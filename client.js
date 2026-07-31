@@ -222,6 +222,11 @@ function renderDailyPlan() {
   $('#daily-plan-fuel').textContent = formatMoney(recommendation.fuel);
   $('#daily-plan-allowance').textContent = formatMoney(recommendation.allowance);
   $('#daily-plan-days').textContent = `${recommendation.daysLeft} hari`;
+  $('#daily-plan-available').textContent = formatMoney(recommendation.availableMoney);
+  $('#daily-plan-savings').textContent = `− ${formatMoney(recommendation.savings)}`;
+  $('#daily-plan-bills-label').textContent = `Tagihan ${recommendation.monthName}`;
+  $('#daily-plan-bills').textContent = `− ${formatMoney(recommendation.pendingBills)}`;
+  $('#daily-plan-free-money').textContent = formatMoney(recommendation.freeMoney);
   $('#daily-plan-caption').textContent = recommendation.caption;
 }
 
@@ -247,7 +252,7 @@ function dailyRecommendation() {
       ? `Dana bebas belum tersedia. Sisihkan dulu total tagihan ${monthName} yang belum dibayar sebesar ${formatMoney(pendingBills)}.`
       : 'Belum ada dana bebas yang bisa dibagi. Tambahkan pemasukan terlebih dahulu.';
 
-  return { daysLeft: DAILY_PLAN_DAYS, total, food, fuel, allowance, caption };
+  return { daysLeft: DAILY_PLAN_DAYS, total, food, fuel, allowance, availableMoney, savings, pendingBills, freeMoney, monthName, caption };
 }
 
 function dailyPlanMonth() {
