@@ -35,6 +35,15 @@ const today = () => new Date().toISOString().slice(0, 10);
 const formatMoney = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 // Saldo belum boleh tampak sebagai utang saat dana awal belum dicatat.
 const formatBalance = (value) => formatMoney(Math.max(Number(value) || 0, 0));
+function hasSufficientBalance(form, accountId, amount) {
+  if (!accountId) return true;
+  const account = state.balances.find((item) => String(item.id) === String(accountId));
+  const available = Math.max(Number(account?.balance) || 0, 0);
+  if (available >= amount) return true;
+  const name = account?.name || 'rekening asal';
+  formError(form, `Saldo ${name} tidak cukup. Tersedia ${formatMoney(available)}.`);
+  return false;
+}
 const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 const formatMonth = (value) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 const formatCalendarMonth = (date) => new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(date);
@@ -203,7 +212,11 @@ function renderEntries() {
   const accountMap = new Map(state.accounts.map((account) => [String(account.id), account.name]));
   $('#activity-list').innerHTML = state.entries.length ? state.entries.map((entry) => {
     const detail = entry.note || entryRoute(entry, accountMap, personMap);
-    const sign = entry.entry_type === 'income' ? '+' : entry.entry_type === 'transfer' || entry.entry_type === 'saving' ? '↔' : '−';
+    const sign = entry.entry_type === 'income' || (entry.entry_type === 'adjustment' && entry.to_account_id && !entry.from_account_id)
+      ? '+'
+      : entry.entry_type === 'transfer' || entry.entry_type === 'saving'
+        ? '↔'
+        : '−';
     return `<article class="timeline-row"><span class="round-icon entry-icon ${entry.entry_type}">${entryIcon(entry.entry_type)}</span><div><strong>${escapeHtml(typeLabels[entry.entry_type] || entry.entry_type)}</strong><small>${escapeHtml(detail)}</small></div><b>${sign} ${formatMoney(entry.amount)}</b></article>`;
   }).join('') : emptyState('Belum ada transaksi. Catat pemasukan atau pengeluaran pertama kalian.');
   renderActivityDescription();
@@ -623,6 +636,7 @@ async function saveEntry(event) {
     note: values.note.trim() || null
   };
   if (payload.from_account_id && payload.from_account_id === payload.to_account_id) return formError(form, 'Rekening asal dan tujuan harus berbeda.');
+  if (!hasSufficientBalance(form, payload.from_account_id, amount)) return;
   await saveWithButton(form, async () => {
     const { error } = await state.client.from('ledger_entries').insert(payload);
     if (error) throw error;
@@ -829,6 +843,7 @@ async function saveBillPayment(event) {
   const bill = state.bills.find((item) => item.id === Number(form.dataset.billId));
   const amount = parseMoney(values.amount);
   if (!amount) return formError(form, 'Isi nominal pembayaran terlebih dahulu.');
+  if (!hasSufficientBalance(form, Number(values.from_account_id), amount)) return;
   await saveWithButton(form, async () => {
     const { data: entry, error: entryError } = await state.client.from('ledger_entries').insert({
       entry_type: 'bill', category: bill.recurring_bills?.bill_category || 'other', amount,
@@ -878,6 +893,7 @@ async function saveGoalDeposit(event) {
   const amount = parseMoney(values.amount);
   if (!savingsAccount) return formError(form, 'Buat rekening dengan tipe savings terlebih dahulu.');
   if (!amount) return formError(form, 'Isi nominal setoran terlebih dahulu.');
+  if (!hasSufficientBalance(form, Number(values.from_account_id), amount)) return;
   await saveWithButton(form, async () => {
     const { data: entry, error: entryError } = await state.client.from('ledger_entries').insert({
       entry_type: 'saving', category: 'savings', amount, entry_date: values.entry_date,
@@ -914,6 +930,7 @@ async function saveGoalWithdrawal(event) {
   if (!amount) return formError(form, 'Isi nominal penarikan terlebih dahulu.');
   if (amount > Number(goal.saved_amount)) return formError(form, 'Nominal tidak boleh lebih besar dari saldo target.');
   if (String(savingsAccount.id) === values.to_account_id) return formError(form, 'Pilih rekening tujuan selain rekening tabungan.');
+  if (!hasSufficientBalance(form, savingsAccount.id, amount)) return;
   await saveWithButton(form, async () => {
     const { data: entry, error: entryError } = await state.client.from('ledger_entries').insert({
       entry_type: 'saving_withdrawal', category: 'savings_withdrawal', amount, entry_date: values.entry_date,
