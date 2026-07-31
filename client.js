@@ -90,17 +90,15 @@ function openDemo() {
   ];
   state.accounts = [
     { id: 1, name: 'Saldo Utama Maddy', account_type: 'bank', holder_id: 2, is_shared: true, is_active: true },
-    { id: 2, name: 'Uang Bryan', account_type: 'cash', holder_id: 2, owner_person_id: 1, is_shared: false, is_active: true },
-    { id: 3, name: 'Uang Bryan (dipegang Bryan)', account_type: 'cash', holder_id: 1, owner_person_id: 1, is_shared: false, is_active: true },
-    { id: 4, name: 'Tabungan Bersama', account_type: 'savings', holder_id: 2, is_shared: true, is_active: true }
+    { id: 2, name: 'Uang Bryan', account_type: 'cash', holder_id: 1, is_shared: true, is_active: true },
+    { id: 3, name: 'Tabungan Bersama', account_type: 'savings', holder_id: 2, is_shared: true, is_active: true }
   ];
   state.balances = [
     { ...state.accounts[0], holder_name: 'Maddy', holder_is_custodian: true, balance: 4000000 },
-    { ...state.accounts[1], holder_name: 'Maddy', holder_is_custodian: true, owner_name: 'Bryan', balance: 100000 },
-    { ...state.accounts[2], holder_name: 'Bryan', holder_is_custodian: false, owner_name: 'Bryan', balance: 50000 },
-    { ...state.accounts[3], holder_name: 'Maddy', holder_is_custodian: true, balance: 1250000 }
+    { ...state.accounts[1], holder_name: 'Bryan', holder_is_custodian: false, balance: 150000 },
+    { ...state.accounts[2], holder_name: 'Maddy', holder_is_custodian: true, balance: 1250000 }
   ];
-  state.overview = { total_combined_money: 5400000, total_held_by_maddy: 5350000, total_held_by_bryan: 50000, total_savings: 1250000 };
+  state.overview = { total_combined_money: 5400000, total_held_by_maddy: 5250000, total_held_by_bryan: 150000, total_savings: 1250000 };
   state.cashflow = { salary_income: 5000000, total_usage: 486000, daily_usage: 236000, bills_paid: 180000, saving_added: 250000 };
   state.bills = [
     { id: 1, amount_due: 180000, status: 'paid', recurring_bills: { name: 'Netflix & Spotify', bill_category: 'application', due_day: 12, responsible_person_id: 2, default_source_account_id: 1 } },
@@ -204,9 +202,8 @@ function renderAccounts() {
   const balances = new Map(state.balances.map((account) => [String(account.id), account]));
   $('#account-list').innerHTML = state.accounts.length ? state.accounts.map((account) => {
     const balance = balances.get(String(account.id)) || account;
-    const owner = balance.owner_name ? `Milik ${balance.owner_name}` : 'Dana bersama';
-    const holder = balance.holder_name ? `dipegang ${balance.holder_name}` : 'pemegang belum diatur';
-    return `<article class="account-row"><span class="round-icon account-icon">${accountIcon(account.account_type)}</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(`${owner} · ${holder}`)}</small></div><b>${formatBalance(balance.balance)}</b></article>`;
+    const holder = balance.holder_name ? `Dipegang ${balance.holder_name}` : 'Pemegang belum diatur';
+    return `<article class="account-row"><span class="round-icon account-icon">${accountIcon(account.account_type)}</span><div><strong>${escapeHtml(account.name)}</strong><small>${escapeHtml(holder)}</small></div><b>${formatBalance(balance.balance)}</b></article>`;
   }).join('') : emptyState('Belum ada rekening. Tambahkan melalui Supabase terlebih dahulu.');
 }
 
@@ -616,7 +613,7 @@ function openEntrySheet(type) {
     : type === 'expense'
       ? `<label>Bayar dari<select name="from_account_id" required>${sourceAccounts}</select></label><label>Dipakai oleh<select name="used_by_person_id" required>${peopleOptions}</select></label>`
       : `<label>Dari rekening<select name="from_account_id" required>${sourceAccounts}</select></label><label>Ke rekening<select name="to_account_id" required>${destinationAccounts}</select></label>`;
-  const helper = type === 'income' ? 'Gaji masuk lebih dulu ke rekening utama. Setelah itu gunakan “Bagi gaji” untuk memindahkan bagian Bryan atau tabungan.' : type === 'transfer' ? 'Uang Bryan adalah milik Bryan yang dapat dipegang Maddy. Memindahkannya ke Saldo Utama Maddy menjadikannya dana bersama; gunakan hanya bila memang ingin mengubah kepemilikan.' : type === 'saving' ? 'Pilih rekening Tabungan Bersama sebagai tujuan.' : '';
+  const helper = type === 'income' ? 'Gaji masuk lebih dulu ke rekening utama. Setelah itu gunakan “Bagi gaji” untuk memindahkan bagian Bryan atau tabungan.' : type === 'transfer' ? 'Pilih tujuan: Uang Bryan, Saldo Utama Maddy, atau Tabungan Bersama. Ini tidak mengurangi total uang kalian.' : type === 'saving' ? 'Pilih rekening Tabungan Bersama sebagai tujuan.' : '';
   const categoryField = type === 'income' ? '<input name="category" type="hidden" value="salary" />' : `<label>Kategori<select name="category">${categories.map((category) => `<option value="${category}">${categoryLabels[category]}</option>`).join('')}</select></label>`;
   openSheet(labels[type], 'CATATAN BARU', `<form class="stack-form" id="entry-form" data-entry-type="${type}"><label>Nominal (Rp)${moneyField('amount', 'Contoh: 50,000')}</label><div class="form-row"><label>Tanggal<input name="entry_date" type="date" value="${today()}" required /></label>${categoryField}</div>${accountFields}<label>Catatan (opsional)<textarea name="note" placeholder="${type === 'income' ? 'Contoh: gaji bulan ini' : 'Contoh: makan siang'}"></textarea></label>${helper ? `<p class="helper-text">${helper}</p>` : ''}<button class="primary-button" type="submit">Simpan catatan</button><p class="form-message" role="status"></p></form>`);
   $('#entry-form').addEventListener('submit', saveEntry);
@@ -1010,12 +1007,7 @@ function defaultDestination(type) {
   return defaultSource(type);
 }
 function accountOptions(selectedId) {
-  return state.accounts.map((account) => {
-    const owner = account.owner_person_id ? state.people.find((person) => person.id === account.owner_person_id)?.name : null;
-    const holder = account.holder_id ? state.people.find((person) => person.id === account.holder_id)?.name : null;
-    const label = owner && holder ? `${account.name} — milik ${owner}, dipegang ${holder}` : account.name;
-    return `<option value="${account.id}" ${String(account.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(label)}</option>`;
-  }).join('');
+  return state.accounts.map((account) => `<option value="${account.id}" ${String(account.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(account.name)}</option>`).join('');
 }
 function personOptions(selectedId) {
   return state.people.map((person) => `<option value="${person.id}" ${String(person.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(person.name)}</option>`).join('');
