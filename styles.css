@@ -55,6 +55,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .person-card small { color: var(--muted); font-size: 11px; }
 .maddy-card { background: var(--maddy-soft); color: var(--maddy-dark); }
 .bryan-card { background: var(--bryan-soft); color: var(--bryan-dark); }
+.bryan-self-card { grid-column: 1 / -1; }
 .person-heading { display: flex; gap: 7px; align-items: center; font-size: 12px; font-weight: 800; }
 .avatar { width: 25px; height: 25px; display: inline-grid; place-items: center; border-radius: 50%; color: white; font-size: 11px; }
 .maddy-avatar { background: var(--maddy); }
